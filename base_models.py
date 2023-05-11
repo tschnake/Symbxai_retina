@@ -3,7 +3,7 @@ import torch
 from torch import nn as nn
 from transformers import BertForSequenceClassification, BertTokenizer, AutoTokenizer, AutoModelForPreTraining
 import numpy as np
-
+import copy
 
 def stabilize(z):
     return z + ((z == 0.).to(z) + z.sign()) * 1e-6

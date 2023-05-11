@@ -1,5 +1,7 @@
 import torch
 from transformers import BertForSequenceClassification, BertTokenizer, AutoTokenizer, AutoModelForPreTraining
+import explanation
+from base_models import stabilize, modified_layer, ModifiedLinear, ModifiedLayerNorm, ModifiedAct, ModifiedTanh
 import numpy as np
 from torch.nn.modules import Module
 from torch import Tensor
@@ -141,9 +143,9 @@ class BertForSequenceClassification(nn.Module):
 class ModifiedBertSelfAttention(nn.Module):
     def __init__(self, self_attention):
         super(ModifiedBertSelfAttention, self).__init__()
-        self.query = ModifiedLinear(fc=self_attention.query, transform=gamma())
-        self.key = ModifiedLinear(fc=self_attention.key, transform=gamma())
-        self.value = ModifiedLinear(fc=self_attention.value, transform=gamma())
+        self.query = ModifiedLinear(fc=self_attention.query, transform=explanation.gamma())
+        self.key = ModifiedLinear(fc=self_attention.key, transform=explanation.gamma())
+        self.value = ModifiedLinear(fc=self_attention.value, transform=explanation.gamma())
         
         self.dropout = self_attention.dropout   
         self.num_attention_heads = self_attention.num_attention_heads
@@ -179,7 +181,7 @@ class ModifiedBertSelfAttention(nn.Module):
 class ModifiedBertSelfOutput(nn.Module): 
     def __init__(self, self_output):
         super(ModifiedBertSelfOutput, self).__init__()
-        self.dense = ModifiedLinear(fc=self_output.dense, transform=gamma())
+        self.dense = ModifiedLinear(fc=self_output.dense, transform=explanation.gamma())
         self.LayerNorm = ModifiedLayerNorm(norm_layer=self_output.LayerNorm,
                                            normalized_shape=self_output.dense.weight.shape[1])
         self.dropout = self_output.dropout
@@ -207,7 +209,7 @@ class ModifiedBertAttention(nn.Module):
 class ModifiedBertIntermediate(nn.Module):
     def __init__(self, intermediate):
         super(ModifiedBertIntermediate, self).__init__()
-        self.dense = ModifiedLinear(fc=intermediate.dense, transform=gamma())
+        self.dense = ModifiedLinear(fc=intermediate.dense, transform=explanation.gamma())
         self.intermediate_act_fn = ModifiedAct(intermediate.intermediate_act_fn)
         
     def forward(self, hidden_states):
@@ -218,7 +220,7 @@ class ModifiedBertIntermediate(nn.Module):
 class ModifiedBertOutput(nn.Module):
     def __init__(self, output):
         super(ModifiedBertOutput, self).__init__()
-        self.dense = ModifiedLinear(fc=output.dense, transform=gamma())
+        self.dense = ModifiedLinear(fc=output.dense, transform=explanation.gamma())
         self.LayerNorm = ModifiedLayerNorm(norm_layer=output.LayerNorm,
                                            normalized_shape=output.dense.weight.shape[1])
         self.dropout = output.dropout
@@ -274,7 +276,7 @@ class ModifiedBertEncoder(nn.Module):
 class ModifiedBertPooler(nn.Module):
     def __init__(self, pooler):
         super(ModifiedBertPooler, self).__init__()
-        self.dense = ModifiedLinear(fc=pooler.dense, transform=gamma())
+        self.dense = ModifiedLinear(fc=pooler.dense, transform=explanation.gamma())
         self.activation = ModifiedTanh(pooler.activation)
         
     def forward(self, hidden_states):
@@ -303,7 +305,7 @@ class ModifiedBertForSequenceClassification(nn.Module):
         super(ModifiedBertForSequenceClassification, self).__init__()
         self.bert = ModifiedBertModel(bert_classification.bert, embeddings, order)
         self.dropout = bert_classification.dropout
-        self.classifier = ModifiedLinear(fc=bert_classification.classifier, transform=gamma())
+        self.classifier = ModifiedLinear(fc=bert_classification.classifier, transform=explanation.gamma())
         self.order = order
         
     def forward(self, x):

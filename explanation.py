@@ -94,18 +94,18 @@ class HOExplainer:
     def __init__(self, model):
         self.pretrained_embeddings = model.bert.embeddings
         self.modified_model = ModifiedBertForSequenceClassification(model,
-                                                       pretrained_embeddings,
+                                                       self.pretrained_embeddings,
                                                        order='higher')
         self.modified_model.eval()
 
         self.tokenizer = BertTokenizer.from_pretrained("textattack/bert-base-uncased-SST-2")
-        self.UNK_IDX = tokenizer.unk_token_id  # an out-of-vocab token
+        self.UNK_IDX = self.tokenizer.unk_token_id  # an out-of-vocab token
         
     def setup_sample(self,sentence, target):
         self.sentence = sentence
         self.target = target
-        self.x = tokenizer(sentence, return_tensors="pt")
-        self.words = tokenizer.convert_ids_to_tokens(self.x['input_ids'].squeeze())
+        self.x = self.tokenizer(sentence, return_tensors="pt")
+        self.words = self.tokenizer.convert_ids_to_tokens(self.x['input_ids'].squeeze())
         
         return True
     
