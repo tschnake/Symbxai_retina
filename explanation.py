@@ -1,5 +1,6 @@
 from itertools import product
 from torch import Tensor
+import torch
 from models import ModifiedBertForSequenceClassification
 from transformers import BertForSequenceClassification, BertTokenizer, AutoTokenizer, AutoModelForPreTraining
 

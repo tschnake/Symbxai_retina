@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import networkx as nx
+import copy
 import dgl
 from networkx.drawing.nx_pydot import graphviz_layout
 from xai_utils import make_color
@@ -83,7 +84,7 @@ def make_text_string(lsent):
         
     return sentence
 
-def vis_tree_heat(tree, node_heat, node_labels=None, save_dir=None):
+def vis_tree_heat(tree, node_heat, vocab_words, node_labels=None, save_dir=None):
     plt.figure(figsize=[12,7])
 
     G = dgl.to_networkx(tree)
@@ -106,13 +107,15 @@ def vis_tree_heat(tree, node_heat, node_labels=None, save_dir=None):
     nx.draw_networkx_edges(G,pos)
     
     # words
+    mask = tree.ndata['mask']
     leaf_nodes = mask.nonzero().squeeze().numpy()
     pos_ = copy.copy(pos)
     
     for ln in leaf_nodes: pos_[ln] = (pos_[ln][0], pos_[ln][1] -50)
-
+    
+    input_ids = tree.ndata['x']
     nx.draw_networkx_labels(G, pos_, 
-                            labels = {ln: words[idw] for ln, idw in zip(leaf_nodes, input_ids[mask == 1])},
+                            labels = {ln: vocab_words[idw] for ln, idw in zip(leaf_nodes, input_ids[mask == 1])},
                            font_size=16)
 
     plt.axis('off')
