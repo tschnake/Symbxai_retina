@@ -1,18 +1,16 @@
 import torch
-from transformers import BertForSequenceClassification, BertTokenizer, AutoTokenizer, AutoModelForPreTraining
-import explanation
-from base_models import stabilize, modified_layer, ModifiedLinear, ModifiedLayerNorm, ModifiedAct, ModifiedTanh
-import numpy as np
+from transformers import BertForSequenceClassification
 import math
-from torch.nn.modules import Module
-from torch import Tensor
 from torch import nn as nn
+from lrp.rules import gamma
+from lrp.core import ModifiedLinear, ModifiedLayerNorm, ModifiedAct
 
 
-# ------ BERT with 3 layers ------
-class BertSelfAttention(nn.Module):
+# ------ Tiny transformer with 3 layers ------
+
+class SelfAttention(nn.Module):
     def __init__(self, self_attention):
-        super(BertSelfAttention, self).__init__()
+        super(SelfAttention, self).__init__()
         self.query = self_attention.query
         self.key = self_attention.key
         self.value = self_attention.value
@@ -35,7 +33,7 @@ class BertSelfAttention(nn.Module):
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
 
-        attention_probs = nn.Softmax(dim=-1)(attention_scores).detach()
+        attention_probs = nn.Softmax(dim=-1)(attention_scores)
 
 
         context_layer = torch.matmul(attention_probs, value_layer)
@@ -48,9 +46,9 @@ class BertSelfAttention(nn.Module):
         return outputs
 
 
-class BertSelfOutput(nn.Module):
+class SelfOutput(nn.Module):
     def __init__(self, self_output):
-        super(BertSelfOutput, self).__init__()
+        super(SelfOutput, self).__init__()
         self.dense = self_output.dense
         self.LayerNorm = self_output.LayerNorm
         self.dropout = self_output.dropout
@@ -62,11 +60,11 @@ class BertSelfOutput(nn.Module):
         return hidden_states
 
 
-class BertAttention(nn.Module):
+class Attention(nn.Module):
     def __init__(self, attention):
-        super(BertAttention, self).__init__()
-        self.self = BertSelfAttention(attention.self)
-        self.output = BertSelfOutput(attention.output)
+        super(Attention, self).__init__()
+        self.self = SelfAttention(attention.self)
+        self.output = SelfOutput(attention.output)
 
     def forward(self, hidden_states):
         self_output = self.self(hidden_states)
@@ -75,10 +73,10 @@ class BertAttention(nn.Module):
         return attention_output
 
 
-class BertLayer(nn.Module):
+class Layer(nn.Module):
     def __init__(self, layer):
-        super(BertLayer, self).__init__()
-        self.attention = BertAttention(layer.attention)
+        super(Layer, self).__init__()
+        self.attention = Attention(layer.attention)
 
     def forward(self, hidden_states):
         hidden_states = self.attention(hidden_states)
@@ -86,13 +84,13 @@ class BertLayer(nn.Module):
         return hidden_states
 
 
-class BertEncoder(nn.Module):
+class Encoder(nn.Module):
     def __init__(self, encoder):
-        super(BertEncoder, self).__init__()
+        super(Encoder, self).__init__()
         layers = []
 
         for i, layer in enumerate(encoder.layer[:3]):
-            layers.append(BertLayer(layer))
+            layers.append(Layer(layer))
         self.layer = nn.ModuleList(layers)
 
     def forward(self, hidden_states):
@@ -101,9 +99,9 @@ class BertEncoder(nn.Module):
         return hidden_states
 
 
-class BertPooler(nn.Module):
+class Pooler(nn.Module):
     def __init__(self, pooler):
-        super(BertPooler, self).__init__()
+        super(Pooler, self).__init__()
         self.dense = pooler.dense
         self.activation = pooler.activation
 
@@ -115,12 +113,12 @@ class BertPooler(nn.Module):
         return pooled_output
 
 
-class BertModel(nn.Module):
+class Model(nn.Module):
     def __init__(self, bert, embeddings):
-        super(BertModel, self).__init__()
+        super(Model, self).__init__()
         self.embeddings = embeddings
-        self.encoder = BertEncoder(bert.encoder)
-        self.pooler = BertPooler(bert.pooler)
+        self.encoder = Encoder(bert.encoder)
+        self.pooler = Pooler(bert.pooler)
 
     def forward(self, x):
         hidden_states = self.embeddings(
@@ -133,10 +131,11 @@ class BertModel(nn.Module):
         return hidden_states
 
 
-class BertForSequenceClassification(nn.Module):
-    def __init__(self, bert_classification, embeddings):
-        super(BertForSequenceClassification, self).__init__()
-        self.bert = BertModel(bert_classification.bert, embeddings)
+class TinyTransformerForSequenceClassification(nn.Module):
+    def __init__(self, bert_classification, name):
+        super(TinyTransformerForSequenceClassification, self).__init__()
+        self.name = name
+        self.bert = Model(bert_classification.bert, bert_classification.bert.embeddings)
         self.dropout = bert_classification.dropout
         self.classifier = bert_classification.classifier
 
@@ -147,13 +146,14 @@ class BertForSequenceClassification(nn.Module):
         return hidden_states
 
 
-# ------ LRP for BERT with 3 layers ------
-class ModifiedBertSelfAttention(nn.Module):
+# ------ LRP for tiny transformer with 3 layers ------
+
+class ModifiedSelfAttention(nn.Module):
     def __init__(self, self_attention):
-        super(ModifiedBertSelfAttention, self).__init__()
-        self.query = ModifiedLinear(fc=self_attention.query, transform=explanation.gamma())
-        self.key = ModifiedLinear(fc=self_attention.key, transform=explanation.gamma())
-        self.value = ModifiedLinear(fc=self_attention.value, transform=explanation.gamma())
+        super(ModifiedSelfAttention, self).__init__()
+        self.query = ModifiedLinear(fc=self_attention.query, transform=gamma())
+        self.key = ModifiedLinear(fc=self_attention.key, transform=gamma())
+        self.value = ModifiedLinear(fc=self_attention.value, transform=gamma())
 
         self.dropout = self_attention.dropout
         self.num_attention_heads = self_attention.num_attention_heads
@@ -186,10 +186,10 @@ class ModifiedBertSelfAttention(nn.Module):
         return outputs
 
 
-class ModifiedBertSelfOutput(nn.Module):
+class ModifiedSelfOutput(nn.Module):
     def __init__(self, self_output):
-        super(ModifiedBertSelfOutput, self).__init__()
-        self.dense = ModifiedLinear(fc=self_output.dense, transform=explanation.gamma())
+        super(ModifiedSelfOutput, self).__init__()
+        self.dense = ModifiedLinear(fc=self_output.dense, transform=gamma())
         self.LayerNorm = ModifiedLayerNorm(norm_layer=self_output.LayerNorm,
                                            normalized_shape=self_output.dense.weight.shape[1])
         self.dropout = self_output.dropout
@@ -201,11 +201,11 @@ class ModifiedBertSelfOutput(nn.Module):
         return hidden_states
 
 
-class ModifiedBertAttention(nn.Module):
+class ModifiedAttention(nn.Module):
     def __init__(self, attention):
-        super(ModifiedBertAttention, self).__init__()
-        self.self = ModifiedBertSelfAttention(attention.self)
-        self.output = ModifiedBertSelfOutput(attention.output)
+        super(ModifiedAttention, self).__init__()
+        self.self = ModifiedSelfAttention(attention.self)
+        self.output = ModifiedSelfOutput(attention.output)
 
     def forward(self, hidden_states):
         self_output = self.self(hidden_states)
@@ -214,37 +214,10 @@ class ModifiedBertAttention(nn.Module):
         return attention_output
 
 
-class ModifiedBertIntermediate(nn.Module):
-    def __init__(self, intermediate):
-        super(ModifiedBertIntermediate, self).__init__()
-        self.dense = ModifiedLinear(fc=intermediate.dense, transform=explanation.gamma())
-        self.intermediate_act_fn = ModifiedAct(intermediate.intermediate_act_fn)
-
-    def forward(self, hidden_states):
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.intermediate_act_fn(hidden_states)
-        return hidden_states
-
-
-class ModifiedBertOutput(nn.Module):
-    def __init__(self, output):
-        super(ModifiedBertOutput, self).__init__()
-        self.dense = ModifiedLinear(fc=output.dense, transform=explanation.gamma())
-        self.LayerNorm = ModifiedLayerNorm(norm_layer=output.LayerNorm,
-                                           normalized_shape=output.dense.weight.shape[1])
-        self.dropout = output.dropout
-
-    def forward(self, hidden_states, input_tensor):
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + input_tensor)
-
-        return hidden_states
-
-
-class ModifiedBertLayer(nn.Module):
+class ModifiedLayer(nn.Module):
     def __init__(self, layer):
-        super(ModifiedBertLayer, self).__init__()
-        self.attention = ModifiedBertAttention(layer.attention)
+        super(ModifiedLayer, self).__init__()
+        self.attention = ModifiedAttention(layer.attention)
 
     def forward(self, hidden_states):
         attention_output = self.attention(hidden_states)
@@ -252,10 +225,10 @@ class ModifiedBertLayer(nn.Module):
 
 
 # -------- Second-Order --------
-class ModifiedBertLayerHigherOrder(nn.Module):
+class ModifiedLayerHigherOrder(nn.Module):
     def __init__(self, layer):
-        super(ModifiedBertLayerHigherOrder, self).__init__()
-        self.attention = ModifiedBertAttention(layer.attention)
+        super(ModifiedLayerHigherOrder, self).__init__()
+        self.attention = ModifiedAttention(layer.attention)
 
     def forward(self, hidden_states, mask):
         attention_output = self.attention(hidden_states)
@@ -265,18 +238,18 @@ class ModifiedBertLayerHigherOrder(nn.Module):
 
 # -----------------------------
 
-class ModifiedBertEncoder(nn.Module):
+class ModifiedEncoder(nn.Module):
     def __init__(self, encoder, order):
-        super(ModifiedBertEncoder, self).__init__()
+        super(ModifiedEncoder, self).__init__()
         self.order = order
-        self.ho_layers = [0, 1, 2]
+        self.ho_layers = [0, 1]
 
         layers = []
         for i, layer in enumerate(encoder.layer):
             if order == 'higher' and i in self.ho_layers:
-                layers.append(ModifiedBertLayerHigherOrder(layer))
+                layers.append(ModifiedLayerHigherOrder(layer))
             else:
-                layers.append(ModifiedBertLayer(layer))
+                layers.append(ModifiedLayer(layer))
         self.layer = nn.ModuleList(layers)
 
     def forward(self, hidden_states, masks):
@@ -289,11 +262,11 @@ class ModifiedBertEncoder(nn.Module):
         return hidden_states
 
 
-class ModifiedBertPooler(nn.Module):
+class ModifiedPooler(nn.Module):
     def __init__(self, pooler):
-        super(ModifiedBertPooler, self).__init__()
-        self.dense = ModifiedLinear(fc=pooler.dense, transform=explanation.gamma())
-        self.activation = ModifiedTanh(pooler.activation)
+        super(ModifiedPooler, self).__init__()
+        self.dense = ModifiedLinear(fc=pooler.dense, transform=gamma())
+        self.activation = ModifiedAct(pooler.activation)
 
     def forward(self, hidden_states):
         first_token_tensor = hidden_states[:, 0]
@@ -303,11 +276,11 @@ class ModifiedBertPooler(nn.Module):
         return pooled_output
 
 
-class ModifiedBertModel(nn.Module):
+class ModifiedModel(nn.Module):
     def __init__(self, bert, order):
-        super(ModifiedBertModel, self).__init__()
-        self.encoder = ModifiedBertEncoder(bert.encoder, order)
-        self.pooler = ModifiedBertPooler(bert.pooler)
+        super(ModifiedModel, self).__init__()
+        self.encoder = ModifiedEncoder(bert.encoder, order)
+        self.pooler = ModifiedPooler(bert.pooler)
 
     def forward(self, x, masks):
         hidden_states = self.encoder(x, masks)
@@ -316,11 +289,11 @@ class ModifiedBertModel(nn.Module):
         return hidden_states
 
 
-class ModifiedBertForSequenceClassification(nn.Module):
-    def __init__(self, bert_classification, pretrained_embeddings, order='higher'):
-        super(ModifiedBertForSequenceClassification, self).__init__()
-        self.bert = ModifiedBertModel(bert_classification.bert, order)
-        self.classifier = ModifiedLinear(fc=bert_classification.classifier, transform=explanation.gamma())
+class ModifiedTinyTransformerForSequenceClassification(nn.Module):
+    def __init__(self, bert_classification, order='higher'):
+        super(ModifiedTinyTransformerForSequenceClassification, self).__init__()
+        self.bert = ModifiedModel(bert_classification.bert, order)
+        self.classifier = ModifiedLinear(fc=bert_classification.classifier, transform=gamma())
         self.order = order
 
     def forward(self, embeddings, masks=None):
@@ -328,3 +301,17 @@ class ModifiedBertForSequenceClassification(nn.Module):
         hidden_states = self.classifier(hidden_states)
 
         return hidden_states
+
+
+def tiny_transformer_with_3_layers(
+        pretrained_model_name_or_path
+):
+    model = BertForSequenceClassification.from_pretrained(
+        pretrained_model_name_or_path
+    )
+
+    return TinyTransformerForSequenceClassification(
+        model,
+        "tiny_transformer_with_3_layers"
+    )
+

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="aff22233-b6a7-415c-a5ad-b10ed1af298e" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/HigherOrderLRP_Transformers.ipynb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/base_models.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/explanation.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/symb_XAI_Transformers_SST.ipynb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/visualizations_utils.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/xai_utils.py" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+        <option value="Jupyter Notebook" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectId" id="2PghzushDqoNfzYQIRmNKfayZ3C" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "WebServerToolWindowFactoryState": "true",
+    "last_opened_file_path": "/Users/farnoush/symbolicXAI",
+    "settings.editor.selected.configurable": "preferences.lookFeel"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/lrp" />
+      <recent name="$PROJECT_DIR$/dataset" />
+      <recent name="$PROJECT_DIR$/xai" />
+    </key>
+  </component>
+  <component name="RunManager">
+    <configuration name="symbolic_xai" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+      <module name="symbolicXAI" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="sftp://farnoush@localhost:2323/home/farnoush/venv/bin/python3.8" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/lrp" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <PathMappingSettings>
+        <option name="pathMappings">
+          <list>
+            <mapping local-root="$PROJECT_DIR$/lrp/symbolic_xai.py" remote-root="/home/farnoush/symbolicXAI/lrp/symbolic_xai.py" />
+          </list>
+        </option>
+      </PathMappingSettings>
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/lrp/symbolic_xai.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="aff22233-b6a7-415c-a5ad-b10ed1af298e" name="Changes" comment="" />
+      <created>1683884897912</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1683884897912</updated>
+      <workItem from="1683884899650" duration="2079000" />
+      <workItem from="1684140931716" duration="958000" />
+      <workItem from="1684316211563" duration="3927000" />
+      <workItem from="1684419776812" duration="3903000" />
+      <workItem from="1684693623918" duration="2881000" />
+      <workItem from="1684744747372" duration="9772000" />
+      <workItem from="1684767108408" duration="473000" />
+      <workItem from="1684767595344" duration="3299000" />
+      <workItem from="1684831606690" duration="12456000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/symbolicXAI$symb_xai_imdb.coverage" NAME="symb_xai_imdb Coverage Results" MODIFIED="1684420507414" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/symbolicXAI$transformers.coverage" NAME="transformer Coverage Results" MODIFIED="1684767060915" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/model" />
+    <SUITE FILE_PATH="coverage/symbolicXAI$transformer.coverage" NAME="symbolic_xai Coverage Results" MODIFIED="1684770269799" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/lrp" />
+  </component>
+</project>
