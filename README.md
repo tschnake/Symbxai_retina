@@ -1,5 +1,5 @@
  <p align="center">
-    <img src="figures/logo.jpeg" width="300" title="The Logo">
+    <img src="figures/logo.jpeg" width="700" title="The Logo">
  </p>
 
 ## Task List
