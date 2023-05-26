@@ -453,7 +453,7 @@ def setup_dep_graph(sample, model, target_property,cutoff=None, new_model=True):
 
     return dep_graph
 
-class TransformerSymbXA(SymbXAI):
+class TransformerSymbXAI(SymbXAI):
     def __init__(self):
         pass
 
