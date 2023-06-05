@@ -10,7 +10,7 @@ class Mode(IntEnum):
 
 # -------------------
 def run_query(rels, subgraph, mode=0):
-    modes = [mode.name for mode in Mode]
+    modes = [mode for mode in Mode]
     assert mode in modes, f'Mode "{mode}" is not implemented.'
 
     r = None

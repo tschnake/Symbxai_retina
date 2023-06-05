@@ -497,7 +497,7 @@ class TransformerSymbXAI(SymbXAI):
             input_ids=sample['input_ids'],
             token_type_ids=sample['token_type_ids']
         )
-
+        
         # Make the model explainable.
         modified_model = ModifiedTinyTransformerForSequenceClassification(
             model,
@@ -604,5 +604,3 @@ class TransformerSymbXAI(SymbXAI):
                 curr_subgraph_node = new_node
 
             return curr_subgraph_node.R.sum() * self.scal_val
-
-
