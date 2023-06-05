@@ -497,7 +497,7 @@ class TransformerSymbXAI(SymbXAI):
             input_ids=sample['input_ids'],
             token_type_ids=sample['token_type_ids']
         )
-
+        
         # Make the model explainable.
         modified_model = ModifiedTinyTransformerForSequenceClassification(
             model,
@@ -556,7 +556,6 @@ class TransformerSymbXAI(SymbXAI):
             for ft in subgraph_idn:
                 m[ft] = 1
             ms = [m] * self.num_layer
-            ms
 
             # Extent the masks by an artificial dimension.
             for dim in range(self.num_layer):
@@ -644,9 +643,5 @@ class TransformerSymbXAI(SymbXAI):
             best_subgraph[f] = self.num_nodes - i
 
         return best_subgraph
-
-
-
-
 
 
