@@ -8,20 +8,56 @@ from lrp.core import ModifiedLinear, ModifiedLayerNorm, ModifiedAct
 
 # ------ Tiny transformer with 3 layers ------
 
+class LayerNorm(nn.Module):
+    def __init__(self, normalized_shape, eps=1e-5, elementwise_affine=True):
+        super(LayerNorm, self).__init__()
+        self.elementwise_affine = elementwise_affine
+        self.eps = eps
+
+        if self.elementwise_affine:
+            if self.elementwise_affine:
+                self.weight = nn.Parameter(torch.Tensor(normalized_shape))
+                self.bias = nn.Parameter(torch.Tensor(normalized_shape))
+            else:
+                self.register_parameter('weight', None)
+                self.register_parameter('bias', None)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        if self.elementwise_affine:
+            nn.init.ones_(self.weight)
+            nn.init.zeros_(self.bias)
+
+    def forward(self, x):
+        mean = x.mean(dim=-1, keepdim=True)
+        std = x.std(dim=-1, keepdim=True)
+        input_norm = (x - mean) / (std + self.eps)
+        return input_norm
+
+
 class SelfAttention(nn.Module):
-    def __init__(self, self_attention):
+    def __init__(self):
         super(SelfAttention, self).__init__()
-        self.query = self_attention.query
-        self.key = self_attention.key
-        self.value = self_attention.value
-        self.dropout = self_attention.dropout
-        self.num_attention_heads = self_attention.num_attention_heads
-        self.attention_head_size = self_attention.attention_head_size
-        self.all_head_size = self_attention.all_head_size
+        self.query = nn.Linear(
+            in_features=768,
+            out_features=768
+        )
+        self.key = nn.Linear(
+            in_features=768,
+            out_features=768
+        )
+        self.value = nn.Linear(
+            in_features=768,
+            out_features=768
+        )
+
+        self.num_attention_heads = 12
+        self.attention_head_size = int(768 / 12)
+        self.all_head_size = self.num_attention_heads * self.attention_head_size
 
     def transpose_for_scores(self, x: torch.Tensor) -> torch.Tensor:
         new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
-        x = x.view(new_x_shape)
+        x = x.view(*new_x_shape)
         return x.permute(0, 2, 1, 3)
 
     def forward(self, hidden_states):
@@ -31,8 +67,6 @@ class SelfAttention(nn.Module):
 
         # Attention scores
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
-        attention_scores = attention_scores / math.sqrt(self.attention_head_size)
-
         attention_probs = nn.Softmax(dim=-1)(attention_scores)
 
 
@@ -47,11 +81,17 @@ class SelfAttention(nn.Module):
 
 
 class SelfOutput(nn.Module):
-    def __init__(self, self_output):
+    def __init__(self):
         super(SelfOutput, self).__init__()
-        self.dense = self_output.dense
-        self.LayerNorm = self_output.LayerNorm
-        self.dropout = self_output.dropout
+        self.dense = nn.Linear(
+            in_features=768,
+            out_features=768
+        )
+        self.LayerNorm = LayerNorm(
+            normalized_shape=768,
+            eps=1e-12,
+            elementwise_affine=True
+        )
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
@@ -60,11 +100,11 @@ class SelfOutput(nn.Module):
         return hidden_states
 
 
-class Attention(nn.Module):
-    def __init__(self, attention):
-        super(Attention, self).__init__()
-        self.self = SelfAttention(attention.self)
-        self.output = SelfOutput(attention.output)
+class Layer(nn.Module):
+    def __init__(self):
+        super(Layer, self).__init__()
+        self.self = SelfAttention()
+        self.output = SelfOutput()
 
     def forward(self, hidden_states):
         self_output = self.self(hidden_states)
@@ -73,24 +113,13 @@ class Attention(nn.Module):
         return attention_output
 
 
-class Layer(nn.Module):
-    def __init__(self, layer):
-        super(Layer, self).__init__()
-        self.attention = Attention(layer.attention)
-
-    def forward(self, hidden_states):
-        hidden_states = self.attention(hidden_states)
-
-        return hidden_states
-
-
 class Encoder(nn.Module):
-    def __init__(self, encoder):
+    def __init__(self):
         super(Encoder, self).__init__()
         layers = []
 
-        for i, layer in enumerate(encoder.layer[:3]):
-            layers.append(Layer(layer))
+        for _ in range(3):
+            layers.append(Layer())
         self.layer = nn.ModuleList(layers)
 
     def forward(self, hidden_states):
@@ -100,10 +129,13 @@ class Encoder(nn.Module):
 
 
 class Pooler(nn.Module):
-    def __init__(self, pooler):
+    def __init__(self):
         super(Pooler, self).__init__()
-        self.dense = pooler.dense
-        self.activation = pooler.activation
+        self.dense = nn.Linear(
+            in_features=768,
+            out_features=768
+        )
+        self.activation = nn.Tanh()
 
     def forward(self, hidden_states):
         first_token_tensor = hidden_states[:, 0]
@@ -114,11 +146,12 @@ class Pooler(nn.Module):
 
 
 class Model(nn.Module):
-    def __init__(self, bert, embeddings):
+    def __init__(self, embeddings):
         super(Model, self).__init__()
         self.embeddings = embeddings
-        self.encoder = Encoder(bert.encoder)
-        self.pooler = Pooler(bert.pooler)
+        self.encoder = Encoder()
+        self.output = SelfOutput()
+        self.pooler = Pooler()
 
     def forward(self, x):
         hidden_states = self.embeddings(
@@ -135,9 +168,12 @@ class TinyTransformerForSequenceClassification(nn.Module):
     def __init__(self, bert_classification, name):
         super(TinyTransformerForSequenceClassification, self).__init__()
         self.name = name
-        self.bert = Model(bert_classification.bert, bert_classification.bert.embeddings)
-        self.dropout = bert_classification.dropout
-        self.classifier = bert_classification.classifier
+        self.bert = Model(embeddings=bert_classification.bert.embeddings)
+        self.classifier = nn.Linear(
+            in_features=768,
+            out_features=2,
+            bias=True
+        )
 
     def forward(self, x):
         hidden_states = self.bert(x)
@@ -155,7 +191,6 @@ class ModifiedSelfAttention(nn.Module):
         self.key = ModifiedLinear(fc=self_attention.key, transform=gamma())
         self.value = ModifiedLinear(fc=self_attention.value, transform=gamma())
 
-        self.dropout = self_attention.dropout
         self.num_attention_heads = self_attention.num_attention_heads
         self.attention_head_size = self_attention.attention_head_size
         self.all_head_size = self_attention.all_head_size
@@ -172,8 +207,6 @@ class ModifiedSelfAttention(nn.Module):
 
         # Attention scores
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
-        attention_scores = attention_scores / math.sqrt(self.attention_head_size)
-
         attention_probs = nn.Softmax(dim=-1)(attention_scores).detach()
 
         context_layer = torch.matmul(attention_probs, value_layer)
@@ -192,7 +225,6 @@ class ModifiedSelfOutput(nn.Module):
         self.dense = ModifiedLinear(fc=self_output.dense, transform=gamma())
         self.LayerNorm = ModifiedLayerNorm(norm_layer=self_output.LayerNorm,
                                            normalized_shape=self_output.dense.weight.shape[1])
-        self.dropout = self_output.dropout
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
@@ -201,64 +233,31 @@ class ModifiedSelfOutput(nn.Module):
         return hidden_states
 
 
-class ModifiedAttention(nn.Module):
-    def __init__(self, attention):
-        super(ModifiedAttention, self).__init__()
-        self.self = ModifiedSelfAttention(attention.self)
-        self.output = ModifiedSelfOutput(attention.output)
-
-    def forward(self, hidden_states):
-        self_output = self.self(hidden_states)
-        attention_output = self.output(self_output, hidden_states)
-
-        return attention_output
-
-
 class ModifiedLayer(nn.Module):
     def __init__(self, layer):
         super(ModifiedLayer, self).__init__()
-        self.attention = ModifiedAttention(layer.attention)
+        self.self = ModifiedSelfAttention(layer.self)
+        self.output = ModifiedSelfOutput(layer.output)
 
     def forward(self, hidden_states):
-        attention_output = self.attention(hidden_states)
-        return attention_output
+        attention_output = self.self(hidden_states)
+        layer_output = self.output(attention_output, hidden_states)
 
+        return layer_output
 
-# -------- Second-Order --------
-class ModifiedLayerHigherOrder(nn.Module):
-    def __init__(self, layer):
-        super(ModifiedLayerHigherOrder, self).__init__()
-        self.attention = ModifiedAttention(layer.attention)
-
-    def forward(self, hidden_states, mask):
-        attention_output = self.attention(hidden_states)
-        attention_output = attention_output * mask + attention_output.data * (1 - mask)
-        return attention_output
-
-
-# -----------------------------
 
 class ModifiedEncoder(nn.Module):
-    def __init__(self, encoder, order):
+    def __init__(self, encoder):
         super(ModifiedEncoder, self).__init__()
-        self.order = order
-        self.ho_layers = [0, 1]
 
         layers = []
         for i, layer in enumerate(encoder.layer):
-            if order == 'higher' and i in self.ho_layers:
-                layers.append(ModifiedLayerHigherOrder(layer))
-            else:
-                layers.append(ModifiedLayer(layer))
+            layers.append(ModifiedLayer(layer))
         self.layer = nn.ModuleList(layers)
 
-    def forward(self, hidden_states, masks):
+    def forward(self, hidden_states):
         for i, layer in enumerate(self.layer):
-            if self.order == 'higher':
-                for j in self.ho_layers:
-                    hidden_states = layer(hidden_states, masks[j])
-            else:
-                hidden_states = layer(hidden_states)
+            hidden_states = layer(hidden_states)
         return hidden_states
 
 
@@ -277,13 +276,13 @@ class ModifiedPooler(nn.Module):
 
 
 class ModifiedModel(nn.Module):
-    def __init__(self, bert, order):
+    def __init__(self, bert):
         super(ModifiedModel, self).__init__()
-        self.encoder = ModifiedEncoder(bert.encoder, order)
+        self.encoder = ModifiedEncoder(bert.encoder)
         self.pooler = ModifiedPooler(bert.pooler)
 
-    def forward(self, x, masks):
-        hidden_states = self.encoder(x, masks)
+    def forward(self, x):
+        hidden_states = self.encoder(x)
         hidden_states = self.pooler(hidden_states)
 
         return hidden_states
@@ -292,12 +291,11 @@ class ModifiedModel(nn.Module):
 class ModifiedTinyTransformerForSequenceClassification(nn.Module):
     def __init__(self, bert_classification, order='higher'):
         super(ModifiedTinyTransformerForSequenceClassification, self).__init__()
-        self.bert = ModifiedModel(bert_classification.bert, order)
+        self.bert = ModifiedModel(bert_classification.bert)
         self.classifier = ModifiedLinear(fc=bert_classification.classifier, transform=gamma())
-        self.order = order
 
-    def forward(self, embeddings, masks=None):
-        hidden_states = self.bert(embeddings, masks)
+    def forward(self, embeddings):
+        hidden_states = self.bert(embeddings)
         hidden_states = self.classifier(hidden_states)
 
         return hidden_states
@@ -309,6 +307,10 @@ def tiny_transformer_with_3_layers(
     model = BertForSequenceClassification.from_pretrained(
         pretrained_model_name_or_path
     )
+    model.bert.embeddings.requires_grad = False
+    for name, param in model.named_parameters():
+        if name.startswith('embeddings'):
+            param.requires_grad = False
 
     return TinyTransformerForSequenceClassification(
         model,

@@ -55,7 +55,6 @@ class ModifiedLinear(Module):
         super(ModifiedLinear, self).__init__()
         self.fc = fc
 
-        zero_bias = True
         if zero_bias:
             self.fc.bias = torch.nn.Parameter(torch.zeros(self.fc.bias.shape))
         
@@ -91,7 +90,6 @@ class ModifiedLayerNorm(Module):
         """
         super(ModifiedLayerNorm, self).__init__()
 
-        zero_bias = True
         if zero_bias:
             norm_layer.bias = torch.nn.Parameter(torch.zeros(norm_layer.bias.shape))
         
