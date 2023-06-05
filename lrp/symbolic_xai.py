@@ -519,6 +519,7 @@ class TransformerSymbXAI(SymbXAI):
 
         def output_module(hidden_states):
             pooled_data = modified_model.bert.pooler(hidden_states)
+
             output = (modified_model.classifier(pooled_data) * target).sum().unsqueeze(0).unsqueeze(0)
             return output
 
@@ -540,6 +541,8 @@ class TransformerSymbXAI(SymbXAI):
             subgraph,
             from_walks=False
     ):
+
+        # TODO: Change the code for from_walks=True
         if from_walks:
             if self.walk_rels_tens is None:
                 _ = self.walk_relevance(rel_rep='tens')  # Just build the tensor.
@@ -553,6 +556,7 @@ class TransformerSymbXAI(SymbXAI):
             for ft in subgraph_idn:
                 m[ft] = 1
             ms = [m] * self.num_layer
+            ms
 
             # Extent the masks by an artificial dimension.
             for dim in range(self.num_layer):
@@ -604,5 +608,45 @@ class TransformerSymbXAI(SymbXAI):
                 curr_subgraph_node = new_node
 
             return curr_subgraph_node.R.sum() * self.scal_val
+
+    def get_local_best_subgraph(
+            self,
+            alpha: float = 0.0
+    ):
+        subgraph = []
+        all_features = np.arange(self.num_nodes)
+
+        while len(subgraph) < self.num_nodes:
+            feature_list = list(frozenset(all_features).difference(frozenset(subgraph)))
+            max_score = -float("inf")
+            max_feature = None
+
+            graph_score = self.subgraph_relevance(subgraph=all_features, from_walks=False)
+
+            for feature in feature_list:
+                # s = subgraph + [feature]
+                s = list(frozenset(all_features).difference(frozenset(subgraph + [feature])))
+
+                # mask = torch.full([self.num_nodes], alpha)
+                # mask[list(s)] = 1.0
+                # mask = torch.diag(mask)
+
+                temp_score = -np.abs(self.subgraph_relevance(subgraph=list(s), from_walks=False) - graph_score)
+
+                if temp_score > max_score:
+                    max_score = temp_score
+                    max_feature = feature
+
+            subgraph += [max_feature]
+
+        best_subgraph = torch.full((self.num_nodes, ), -1)
+        for i, f in enumerate(subgraph):
+            best_subgraph[f] = self.num_nodes - i
+
+        return best_subgraph
+
+
+
+
 
 
