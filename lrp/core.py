@@ -1,9 +1,9 @@
+from typing import Any, Tuple
 from torch.nn.modules import Module
 import torch
 from torch import nn as nn
-from transformers import BertForSequenceClassification, BertTokenizer, AutoTokenizer, AutoModelForPreTraining
-import numpy as np
 import copy
+
 
 def stabilize(z):
     return z + ((z == 0.).to(z) + z.sign()) * 1e-6
@@ -17,9 +17,10 @@ def modified_layer(
     This function creates a copy of a layer and modify
     its parameters based on a transformation function 'transform'.
     -------------------
-    :param layer: A layer which its parameters are going to be transformed.
-    :param transform: A transformation function.
-    :return: A new layer with modified parameters.
+
+    :param layer: a layer which its parameters are going to be transformed.
+    :param transform: a transformation function.
+    :return: a new layer with modified parameters.
     """
     new_layer = copy.deepcopy(layer)
 
@@ -39,14 +40,23 @@ def modified_layer(
 class ModifiedLinear(Module):
     def __init__(
             self,
-            fc,
-            transform
+            fc: torch.nn.Linear,
+            transform: Any,
+            zero_bias: bool = False
     ):
+        """
+        A wrapper to make torch.nn.Linear explainable.
+        -------------------
+
+        :param fc: a fully-connected layer (torch.nn.Linear).
+        :param transform: a transformation function to modify the layer's parameters.
+        :param zero_bias: set the layer's bias to zero. It is useful when checking the conservation property.
+        """
         super(ModifiedLinear, self).__init__()
         self.fc = fc
-        
-        # TODO: Do not set bias to 0.
-        # self.fc.bias = torch.nn.Parameter(torch.zeros(self.fc.bias.shape))
+
+        if zero_bias:
+            self.fc.bias = torch.nn.Parameter(torch.zeros(self.fc.bias.shape))
         
         self.transform = transform
         self.modified_fc = modified_layer(layer=fc, transform=transform)
@@ -64,13 +74,24 @@ class ModifiedLinear(Module):
 class ModifiedLayerNorm(Module):
     def __init__(
             self,
-            norm_layer,
-            normalized_shape,
-            eps=1e-12
+            norm_layer: torch.nn.LayerNorm,
+            normalized_shape: Tuple,
+            eps: float = 1e-12,
+            zero_bias: bool = False
     ):
+        """
+        A wrapper to make torch.nn.LayerNorm explainable.
+        -------------------
+
+        :param norm_layer: a norm layer (torch.nn.LayerNorm).
+        :param normalized_shape:
+        :param eps: a value added to the denominator for numerical stability
+        :param zero_bias: set the layer's bias to zero. It is useful when checking the conservation property.
+        """
         super(ModifiedLayerNorm, self).__init__()
-        # TODO: Do not set bias to 0.
-        # norm_layer.bias = torch.nn.Parameter(torch.zeros(norm_layer.bias.shape))
+
+        if zero_bias:
+            norm_layer.bias = torch.nn.Parameter(torch.zeros(norm_layer.bias.shape))
         
         self.norm_layer = norm_layer
         self.weight = norm_layer.weight
@@ -91,33 +112,22 @@ class ModifiedLayerNorm(Module):
         zp = ((input - mean) / denominator) * self.weight + self.bias
         zp = stabilize(zp)
         return (zp.double() * (z.double() / zp.double()).data.double()).float()
-    
+
+
 class ModifiedAct(Module):
     def __init__(
         self,
-        act
+        act: Any
     ):
+        """
+       A wrapper to make activation layers such as torch.nn.Tanh or torch.nn.ReLU explainable.
+       -------------------
+
+       :param act: an activation layer (torch.nn.Tanh or torch.nn.ReLU).
+       """
         super(ModifiedAct, self).__init__()
         self.modified_act = nn.Identity()
         self.act = act
-    
-    def forward(
-        self,
-        x
-    ):
-        z = self.act(x)
-        zp = self.modified_act(x)
-        zp = stabilize(zp)
-        return (zp.double() * (z.double() / zp.double()).data.double()).float()
-    
-class ModifiedTanh(Module):
-    def __init__(
-        self,
-        act
-    ):
-        super(ModifiedTanh, self).__init__() 
-        self.act = act
-        self.modified_act = nn.Identity()
     
     def forward(
         self,
