@@ -84,7 +84,10 @@ class SymbXAI:
             self.xs.append(x.data)
 
         # Set up for each layer the dependencies.
-        self.lamb_per_layer = [lamb for _ in range(self.num_layer - 1)] + [torch.ones(self.num_nodes).unsqueeze(0)]
+        if isinstance(lamb, list):
+            self.lamb_per_layer = lamb
+        else:
+            self.lamb_per_layer = [lamb for _ in range(self.num_layer - 1)] + [torch.ones(self.num_nodes).unsqueeze(0)]
 
         # Initialize the relevance.
         if R_T is None:
@@ -166,7 +169,6 @@ class SymbXAI:
                     node.R,
                     node.node_rep
                 )
-
 
                 # Distribute the relevance to the neighbors.
                 for neigh_rep in node.neighbors():
@@ -456,7 +458,8 @@ class SymbXAI:
         """
 
         if not self.walk_rels_computed:
-            if verbose: print('setting up walk relevances for the full graph.. this may take a wile.')
+            if verbose:
+                print('setting up walk relevances for the full graph.. this may take a wile.')
             self.setup_walk_relevance_scores()
 
         # Just return all walk relevances.
@@ -512,6 +515,7 @@ class TransformerSymbXAI(SymbXAI):
             num_tokens = x.shape[0]
 
         lamb = torch.ones((num_tokens, num_tokens))
+        lamb_last_layer = torch.zeros((num_tokens, num_tokens))
 
         layers = []
         for layer in modified_model.bert.encoder.layer:
@@ -525,12 +529,15 @@ class TransformerSymbXAI(SymbXAI):
 
         layers.append(output_module)
 
+        lamb_last_layer[0, :] = torch.ones(num_tokens)
+        lambs = [lamb for _ in range(len(layers) - 2)] + [lamb_last_layer] + [torch.ones(num_tokens).unsqueeze(0)]
+
 
         super().__init__(
             layers,
             x.data,
             num_tokens,
-            lamb,
+            lambs,
             R_T=None,
             batch_dim=batch_dim,
             scal_val=scal_val
@@ -589,10 +596,10 @@ class TransformerSymbXAI(SymbXAI):
 
                 if layer_id == 3:
                     # Create new subgraph nodes.
-                    new_node = Node(subgraph,
+                    new_node = Node(0,
                                     self.lamb_per_layer[layer_id - 1],
                                     curr_subgraph_node,
-                                    R[0] if not self.batch_dim else R[0, 0].repeat(len(subgraph), 1),
+                                    R[0] if not self.batch_dim else R[0, 0],
                                     domain_restrict=None
                                     )
                 else:
