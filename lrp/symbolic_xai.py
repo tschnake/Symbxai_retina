@@ -137,7 +137,7 @@ class SymbXAI:
                                                  R[node_rep] if not self.batch_dim else R[0, node_rep],
                                                  domain_restrict=domain_restrict)]
 
-    def setup_walk_relevance_scores(
+    def _setup_walk_relevance_scores(
             self,
             domain_restrict=None,
             verbose=False
@@ -190,206 +190,80 @@ class SymbXAI:
 
 
     def node_relevance(
-            self,
-            mode='DeltaR'
+            self
     ):
 
-        if mode == 'node@input':
-            # Initialize the last relevance.
-            curr_node = Node(
-                0,
-                self.lamb_per_layer[self.num_layer - 1],
-                None,
-                self.R_T[0] if not self.batch_dim else self.R_T[0, 0],
+        # Initialize the last relevance.
+        curr_node = Node(
+            0,
+            self.lamb_per_layer[self.num_layer - 1],
+            None,
+            self.R_T[0] if not self.batch_dim else self.R_T[0, 0],
+            domain_restrict=None
+        )
+
+        for act, layer, layer_id in list(zip(self.xs[:-1], self.layers, range(len(self.layers))))[::-1]:
+            # Iterate over the nodes.
+            R = self._relprop_standard(
+                act,
+                layer,
+                curr_node.R,
+                curr_node.node_rep
+            )
+
+            # Create new nodes
+            new_node = Node(
+                self.node_domain,
+                self.lamb_per_layer[layer_id - 1],
+                curr_node,
+                R[self.node_domain] if not self.batch_dim else R[0, self.node_domain],
                 domain_restrict=None
             )
 
-            for act, layer, layer_id in list(zip(self.xs[:-1], self.layers, range(len(self.layers))))[::-1]:
-                # Iterate over the nodes.
-                R = self._relprop_standard(
-                    act,
-                    layer,
-                    curr_node.R,
-                    curr_node.node_rep
-                )
-
-                # Create new nodes
-                new_node = Node(
-                    self.node_domain,
-                    self.lamb_per_layer[layer_id - 1],
-                    curr_node,
-                    R[self.node_domain] if not self.batch_dim else R[0, self.node_domain],
-                    domain_restrict=None
-                )
-
-                curr_node = new_node
-            node_rel = curr_node.R.sum(-1) * self.scal_val
-        elif mode == 'DeltaR':
-            node_rel = np.array([self.subgraph_relevance([node]) for node in self.node_domain])
+            curr_node = new_node
+        node_rel = curr_node.R.sum(-1) * self.scal_val
 
         return node_rel
 
-    def edge_relevance(
-            self,
-            mode='DeltaR',
-            cust_edges=None,
-            with_selfloop=True,
-            from_walks=False
+    def symb_or(self,
+        featset,
+        context = None
     ):
-        assert mode in ['edge_in_walk', 'walk_in_edge', 'edge@input', 'DeltaR'], f'mode "{mode}" is not defined'
+        if context is None:
+            context = self.node_domain
 
-        if mode == 'edge@input':
-            # Initialize the last relevance
-            curr_node = Node(
-                0,
-                self.lamb_per_layer[self.num_layer - 1],
-                None,
-                self.R_T[0] if not self.batch_dim else self.R_T[0, 0],
-                domain_restrict=None
-            )
+        return self.subgraph_relevance( context ) - \
+                self.subgraph_relevance(
+                        list(set(context) - set(featset)))
 
-            for act, layer, layer_id in list(zip(self.xs[:-1], self.layers, range(len(self.layers))))[::-1]:
-                if layer_id > 0:
-                    # Simple first order backpropagation.
-                    R = self._relprop_standard(act,
-                                               layer,
-                                               curr_node.R,
-                                               curr_node.node_rep)
 
-                    # Create new nodes
-                    new_node = Node(
-                        self.node_domain,
-                        self.lamb_per_layer[layer_id - 1],
-                        curr_node,
-                        R[self.node_domain] if not self.batch_dim else R[0, self.node_domain],
-                        domain_restrict=None
-                    )
+    def symb_not(self,
+        featset,
+        context=None):
 
-                    curr_node = new_node
-                else:
-                    if cust_edges is None:
-                        lamb = self.lamb_per_layer[layer_id]
-                    else:
-                        lamb = torch.zeros(self.lamb_per_layer[layer_id].shape)
-                        for i, j in cust_edges: lamb[i, j] = 1
+        if context is None:
+            context = self.node_domain
 
-                    temp_node_domain = set(lamb.nonzero().T.numpy()[0])
-                    init_nodes = [Node(node_rep,
-                                       lamb,
-                                       None,
-                                       curr_node.R[node_rep] if not self.batch_dim else R[0, node_rep])
-                                  for node_rep in temp_node_domain]
-                    out_nodes = []
-                    # Iterate over the nodes
-                    for node in init_nodes:
-                        # Compute the relevance
-                        R = self._relprop_standard(
-                            act,
-                            layer,
-                            node.R,
-                            node.node_rep
-                        )
+        return self.subgraph_relevance( context ) - \
+                self.symb_or(featset, context=context)
 
-                        # Distribute the relevance to the neighbors
-                        for neigh_rep in node.neighbors():
-                            out_nodes += [Node(neigh_rep,
-                                               None,
-                                               node,
-                                               R[neigh_rep] if not self.batch_dim else R[0, neigh_rep])]
-
-            # Extract the edge relevance.
-            edge_rel = {}
-
-            for node in out_nodes:
-                walk, rel = node.get_walk(), node.R.data.sum().item()
-                edge_rel[walk] = rel * self.scal_val
-
-        elif mode == 'edge_in_walk':
-            # Get edges.
-            edges = [tuple(edge) for edge in self.lamb_per_layer[0].nonzero().numpy()]
-
-            wrel = self.walk_relevance(verbose=False)
-            edge_rel = {}
-            for edge in edges:
-                erel = 0.
-                for w, rel in wrel:
-                    for t in range(len(w) - 1):
-                        if w[t:t + 2] == edge:
-                            erel += rel
-                            break
-                edge_rel[edge] = erel.item() / (self.num_layer - 1)
-
-        elif mode == 'walk_in_edge':
-            # Get edges.
-            edges = [tuple(edge) for edge in self.lamb_per_layer[0].nonzero().numpy()]
-
-            edge_rel = {edge: self.subgraph_relevance(edge).item() for edge in edges}
-
-        elif mode == 'DeltaR':
-            if cust_edges is None:
-                # Get edges.
-                edges = [tuple(edge) for edge in self.lamb_per_layer[0].nonzero().numpy()]
-                if not with_selfloop:
-                    edges = [(i, j) for (i, j) in edges if i != j]
-            else:
-                edges = cust_edges
-            edge_rel = {}
-
-            if from_walks:
-                wrel = self.walk_relevance(verbose=False)
-                for (i, j) in edges:
-                    edge_rel[(i, j)] = 0.
-                    for walk, rel in wrel:
-                        if i != j and len(set(walk)) == 2 and all([w in [i, j] for w in walk]):
-                            edge_rel[(i, j)] += float(rel)
-                        elif i == j and len(set(walk)) == 1 and all([w in [i, j] for w in walk]):
-                            edge_rel[(i, j)] += float(rel)
-                        else:
-                            continue
-            else:
-                for (i, j) in edges:
-                    if i == j:
-                        edge_rel[(i, j)] = self.subgraph_relevance([i])
-                    else:
-                        edge_rel[(i, j)] = self.subgraph_relevance([i, j])
-                        edge_rel[(i, j)] -= self.subgraph_relevance([i]) + self.subgraph_relevance([j])
-
-                    # Turn it into float.
-                    edge_rel[(i, j)] = float(edge_rel[(i, j)])
-        return edge_rel
-
-    def visit_relevance(
-            self,
-            nodes,
-            inter_union='union',
-            from_walks=False
+    def symb_and(self,
+        featset,
+        context=None
     ):
-        assert len(nodes) == len(set(nodes)), f'Nodes are {nodes}. No node doubling please.'
-        if from_walks:
+        assert len(featset) <=2, 'Sorry, the "and" operator for more than 2 ' \
+                            +'elements is not implemented yet!'
 
-            # Check whether walks have been computed.
-            if self.walk_rels_tens is None:
-                _ = self.walk_relevance(rel_rep='tens')  # Just build the tensor.
+        if len(featset) <= 1:
+            return self.symb_or(featset,context=context)
 
-            R_out = 0
-            # Iterate over all walks.
-            walks = self.walk_rels_tens.nonzero()
-            # TODO: itertools - select walks in the forehand.
-            for walk in walks:
-                if inter_union == 'union' and any([I in walk for I in nodes]):
-                    R_out += self.walk_rels_tens[tuple(walk)]
-                if inter_union == 'inter' and all([I in walk for I in nodes]):
-                    R_out += self.walk_rels_tens[tuple(walk)]
+        elif  len(featset) == 2:
+            s1, s2 = [featset[0]], [featset[1]]
 
-            return R_out
-        else:
-            full_r = self.subgraph_relevance(self.node_domain)
-            ncomp_r = self.subgraph_relevance(list(set(self.node_domain) - set(nodes)))
+            return self.symb_or(s1,context=context) \
+                    + self.symb_or(s2,context=context)  \
+                    - self.symb_or(featset,context=context)
 
-            if inter_union == 'union':
-                return full_r - ncomp_r
-            if inter_union == 'inter':
-                return full_r - ncomp_r - self.subgraph_relevance(nodes)
 
     def subgraph_relevance(
             self,
@@ -460,7 +334,7 @@ class SymbXAI:
         if not self.walk_rels_computed:
             if verbose:
                 print('setting up walk relevances for the full graph.. this may take a wile.')
-            self.setup_walk_relevance_scores()
+            self._setup_walk_relevance_scores()
 
         # Just return all walk relevances.
         if rel_rep == 'tens':
@@ -500,7 +374,7 @@ class TransformerSymbXAI(SymbXAI):
             input_ids=sample['input_ids'],
             token_type_ids=sample['token_type_ids']
         )
-        
+
         # Make the model explainable.
         modified_model = ModifiedTinyTransformerForSequenceClassification(
             model,
@@ -650,5 +524,3 @@ class TransformerSymbXAI(SymbXAI):
             best_subgraph[f] = self.num_nodes - i
 
         return best_subgraph
-
-
