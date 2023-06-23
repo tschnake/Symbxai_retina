@@ -1,7 +1,8 @@
 import torch
 from functools import reduce
 import numpy as np
-from model.transformer import ModifiedTinyTransformerForSequenceClassification
+from ..model.transformer import ModifiedTinyTransformerForSequenceClassification
+import schnetpack as spk
 
 
 class Node:
@@ -270,6 +271,9 @@ class SymbXAI:
             subgraph,
             from_walks=False
     ):
+        if type(subgraph) != list:
+            subgraph = list(subgraph)
+
         if from_walks:
             if self.walk_rels_tens is None:
                 _ = self.walk_relevance(rel_rep='tens')  # Just build the tensor.
@@ -422,7 +426,8 @@ class TransformerSymbXAI(SymbXAI):
             subgraph,
             from_walks=False
     ):
-
+        if type(subgraph) != list:
+            subgraph = list(subgraph)
         # TODO: Change the code for from_walks=True
         if from_walks:
             if self.walk_rels_tens is None:
@@ -524,3 +529,146 @@ class TransformerSymbXAI(SymbXAI):
             best_subgraph[f] = self.num_nodes - i
 
         return best_subgraph
+
+
+######################
+# Quantum Chemistry #
+#####################
+class SchNetSymbXAI(SymbXAI):
+    def __init__(
+        self,
+        sample,
+        model,
+        target_property,
+        xai_mod=True,
+        gamma=0.1,
+        cutoff=None,
+        new_model=True,
+        comp_domain=None,
+        scal_val=1.
+    ):
+        model.zero_grad()  # When computing forces, the model still has the gradients.
+        _, n_atoms, _, idx_i, idx_j, x, _, f_ij, rcut_ij, node_range, lamb = get_prepro_sample_qc(
+            sample, model, new_model=new_model
+        )
+
+        for layer in model.representation.interactions:
+            layer._set_xai(xai_mod, gamma)
+        model.output_modules[0]._set_xai(xai_mod, gamma)
+
+        layers = []
+        for inter in model.representation.interactions:
+            def layer(h, curr_layer=inter):
+                curr_layer.zero_grad()
+                return h + curr_layer(h, f_ij, idx_i, idx_j, rcut_ij)
+            layers.append(layer)
+
+        def out_layer(h):
+            sample['scalar_representation'] = h
+            layer = model.output_modules[0]
+            layer.zero_grad()
+            return layer(sample)[target_property]
+        layers += [out_layer]
+
+        super().__init__(
+            layers,
+            x.data,
+            n_atoms,
+            lamb,
+            R_T=None,
+            batch_dim=not new_model,
+            scal_val=scal_val
+        )
+
+
+def get_prepro_sample_qc(
+    sample,
+    model,
+    new_model=True,
+    add_selfconn=True,
+    cutoff=None
+):
+    if new_model:
+        if spk.properties.Rij not in sample:
+            model(sample)
+
+        atomic_numbers = sample[spk.properties.Z]
+        r_ij = sample[spk.properties.Rij]
+        idx_i = sample[spk.properties.idx_i]
+        idx_j = sample[spk.properties.idx_j]
+        n_atoms = sample[spk.properties.n_atoms]
+
+        x = model.representation.embedding(atomic_numbers)
+        d_ij = torch.norm(r_ij, dim=1).float()
+        f_ij = model.representation.radial_basis(d_ij)
+        rcut_ij = model.representation.cutoff_fn(d_ij)
+
+        node_range = [i for i in range(n_atoms[0])]
+        lamb = torch.zeros(n_atoms[0], n_atoms[0])
+
+        if cutoff is None:
+            lamb[idx_i, idx_j] = 1
+        else:
+            for i, j, d in zip(idx_i, idx_j, d_ij):
+                if d <= cutoff:
+                    lamb[i, j] = 1
+
+        if add_selfconn:
+            lamb += torch.eye(n_atoms[0])
+
+        return (
+            atomic_numbers,
+            n_atoms,
+            r_ij,
+            idx_i,
+            idx_j,
+            x,
+            d_ij,
+            f_ij,
+            rcut_ij,
+            node_range,
+            lamb
+        )
+    else:
+        atomic_numbers = sample[spk.Properties.Z]
+        positions = sample[spk.Properties.R]
+        cell = sample[spk.Properties.cell]
+        cell_offset = sample[spk.Properties.cell_offset]
+        neighbors = sample[spk.Properties.neighbors]
+        neighbor_mask = sample[spk.Properties.neighbor_mask]
+        atom_mask = sample[spk.Properties.atom_mask]
+        n_atoms = torch.tensor(atomic_numbers.shape[1]).unsqueeze(0)
+
+        x = model.representation.embedding(atomic_numbers)
+        r_ij = model.representation.distances(
+            positions,
+            neighbors,
+            cell,
+            cell_offset,
+            neighbor_mask=neighbor_mask
+        )
+        f_ij = model.representation.distance_expansion(r_ij)
+        node_range = [i for i in range(n_atoms[0])]
+
+        hard_cutoff_network = spk.nn.cutoff.HardCutoff(cutoff)
+        lamb_raw = hard_cutoff_network(r_ij)[0]
+
+        lamb = torch.zeros(lamb_raw.shape[0], lamb_raw.shape[1] + 1)
+
+        for row_idx, row in enumerate(lamb_raw):
+            lamb[row_idx] = torch.cat((row[:row_idx], torch.tensor([0.]), row[row_idx:]))
+
+        if add_selfconn:
+            lamb += torch.eye(n_atoms[0])
+
+        return (
+            atomic_numbers,
+            n_atoms,
+            r_ij,
+            neighbors,
+            neighbor_mask,
+            f_ij,
+            x,
+            node_range,
+            lamb
+        )

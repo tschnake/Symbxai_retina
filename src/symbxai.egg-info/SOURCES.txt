@@ -1,0 +1,6 @@
+README.md
+setup.py
+src/symbxai.egg-info/PKG-INFO
+src/symbxai.egg-info/SOURCES.txt
+src/symbxai.egg-info/dependency_links.txt
+src/symbxai.egg-info/top_level.txt

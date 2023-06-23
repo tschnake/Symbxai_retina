@@ -2,8 +2,8 @@ import torch
 from transformers import BertForSequenceClassification
 import math
 from torch import nn as nn
-from lrp.rules import gamma
-from lrp.core import ModifiedLinear, ModifiedLayerNorm, ModifiedAct
+from ..lrp.rules import gamma
+from ..lrp.core import ModifiedLinear, ModifiedLayerNorm, ModifiedAct
 
 
 # ------ Tiny transformer with 3 layers ------
@@ -316,4 +316,3 @@ def tiny_transformer_with_3_layers(
         model,
         "tiny_transformer_with_3_layers"
     )
-

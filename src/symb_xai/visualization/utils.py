@@ -125,7 +125,7 @@ def vis_tree_heat(tree, node_heat, vocab_words, node_labels=None, save_dir=None,
 
     plt.axis('off')
     plt.tight_layout()
-    plt.margins(y=.1, x=.0)
+    plt.margins(y=.3, x=.0)
     if save_dir is not None:
         plt.savefig(save_dir, transparent=True)
     plt.show()
