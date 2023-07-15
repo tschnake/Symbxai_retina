@@ -252,7 +252,7 @@ class SymbXAI:
         featset,
         context=None
     ):
-        assert len(featset) <=2, 'Sorry, the "and" operator for more than 2 ' \
+        assert len(featset) <=3, 'Sorry, the "and" operator for more than 3 ' \
                             +'elements is not implemented yet!'
 
         if len(featset) <= 1:
@@ -264,7 +264,15 @@ class SymbXAI:
             return self.symb_or(s1,context=context) \
                     + self.symb_or(s2,context=context)  \
                     - self.symb_or(featset,context=context)
-
+        elif len(featset) == 3:
+            s1, s2, s3 = [[fs] for fs in featset]
+            return self.symb_and( s1 + s2, context=context) \
+                    + self.symb_and(s2 + s3, context=context) \
+                    + self.symb_and(s1 + s3, context=context) \
+                    - self.symb_or(s1, context=context) \
+                    - self.symb_or(s2, context=context)  \
+                    - self.symb_or(s3, context=context) \
+                    + self.symb_or(featset, context=context)
 
     def subgraph_relevance(
             self,
