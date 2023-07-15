@@ -1,7 +1,7 @@
 import torch
 from functools import reduce
 import numpy as np
-from ..model.transformer import ModifiedTinyTransformerForSequenceClassification
+from ..model.transformer import ModifiedTinyTransformerForSequenceClassification,  ModifiedBertForSequenceClassification
 import schnetpack as spk
 
 
@@ -537,6 +537,136 @@ class TransformerSymbXAI(SymbXAI):
             best_subgraph[f] = self.num_nodes - i
 
         return best_subgraph
+
+
+class BERTSymbXAI(SymbXAI):
+    def __init__(
+            self,
+            sample,
+            target,
+            model,
+            embeddings,
+            scal_val=1.
+    ):
+        model.zero_grad()
+
+        # Prepare the input embeddings.
+        x = embeddings(
+            input_ids=sample['input_ids'],
+            token_type_ids=sample['token_type_ids']
+        )
+
+        # Make the model explainable.
+        modified_model = ModifiedBertForSequenceClassification(
+            model
+        )
+
+        if len(x.shape) >= 3:
+            batch_dim = True
+            num_tokens = x.shape[1]
+        else:
+            batch_dim = False
+            num_tokens = x.shape[0]
+
+        lamb = torch.ones((num_tokens, num_tokens))
+        lamb_last_layer = torch.zeros((num_tokens, num_tokens))
+
+        layers = []
+        for layer in modified_model.bert.encoder.layer:
+            layers.append(layer)
+
+        def output_module(hidden_states):
+            pooled_data = modified_model.bert.pooler(hidden_states)
+            logits = modified_model.classifier(pooled_data)
+            output = (logits * target).sum().unsqueeze(0).unsqueeze(0)
+            return output
+
+        layers.append(output_module)
+
+        lamb_last_layer[0, :] = torch.ones(num_tokens)
+        lambs = [lamb for _ in range(len(layers) - 2)] + [lamb_last_layer] + [torch.ones(num_tokens).unsqueeze(0)]
+
+        super().__init__(
+            layers,
+            x.data,
+            num_tokens,
+            lambs,
+            R_T=None,
+            batch_dim=batch_dim,
+            scal_val=scal_val
+        )
+
+    def subgraph_relevance(
+            self,
+            subgraph,
+            from_walks=False
+    ):
+
+        # TODO: Change the code for from_walks=True
+        if from_walks:
+            if self.walk_rels_tens is None:
+                _ = self.walk_relevance(rel_rep='tens')  # Just build the tensor.
+
+            # Transform subgraph which is given by a set of node representations,
+            # into a set of node identifications.
+            subgraph_idn = [self.node2idn[idn] for idn in subgraph]
+
+            # Define the mask for the subgraph.
+            m = torch.zeros((self.walk_rels_tens.shape[0],))
+            for ft in subgraph_idn:
+                m[ft] = 1
+            ms = [m] * self.num_layer
+
+            # Extent the masks by an artificial dimension.
+            for dim in range(self.num_layer):
+                for unsqu_pos in [0] * (self.num_layer - 1 - dim) + [-1] * dim:
+                    ms[dim] = ms[dim].unsqueeze(unsqu_pos)
+
+            # Perform tensor-product.
+            m = reduce(lambda x, y: x * y, ms)
+            assert self.walk_rels_tens.shape == m.shape, f'R.shape = {self.walk_rels_tens.shape}, m.shape = {m.shape}'
+
+            # Just sum the relevance scores where the mask is non-zero.
+            R_subgraph = (self.walk_rels_tens * m).sum()
+
+            return R_subgraph * self.scal_val
+        else:
+            # Initialize the last relevance.
+            curr_subgraph_node = Node(
+                0,
+                self.lamb_per_layer[self.num_layer - 1],
+                None,
+                self.R_T[0] if not self.batch_dim else self.R_T[0, 0],
+                domain_restrict=None
+            )
+
+            for act, layer, layer_id in list(zip(self.xs[:-1], self.layers, range(len(self.layers))))[::-1]:
+                # Iterate over the nodes.
+                R = self._relprop_standard(act,
+                                           layer,
+                                           curr_subgraph_node.R,
+                                           curr_subgraph_node.node_rep)
+
+                if layer_id == 12:
+                    # Create new subgraph nodes.
+                    new_node = Node(0,
+                                    self.lamb_per_layer[layer_id - 1],
+                                    curr_subgraph_node,
+                                    R[0] if not self.batch_dim else R[0, 0],
+                                    domain_restrict=None
+                                    )
+                else:
+                    # Create new subgraph nodes.
+                    new_node = Node(subgraph,
+                                    self.lamb_per_layer[layer_id - 1],
+                                    curr_subgraph_node,
+                                    R[subgraph] if not self.batch_dim else R[0, subgraph],
+                                    domain_restrict=None
+                                    )
+
+                curr_subgraph_node = new_node
+
+            return curr_subgraph_node.R.sum() * self.scal_val
 
 
 ######################
