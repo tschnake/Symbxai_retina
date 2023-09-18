@@ -630,7 +630,8 @@ class BERTSymbXAI(SymbXAI):
             target,
             model,
             embeddings,
-            scal_val=1.
+            scal_val=1.,
+            use_lrp_layers=True
     ):
         model.zero_grad()
 
@@ -641,9 +642,13 @@ class BERTSymbXAI(SymbXAI):
         )
 
         # Make the model explainable.
-        modified_model = ModifiedBertForSequenceClassification(
-            model
-        )
+
+        if use_lrp_layers:
+            modified_model = ModifiedBertForSequenceClassification(
+                model
+            )
+        else:
+            modified_model = model
 
         if len(x.shape) >= 3:
             batch_dim = True
@@ -751,6 +756,30 @@ class BERTSymbXAI(SymbXAI):
                 curr_subgraph_node = new_node
 
             return curr_subgraph_node.R.sum() * self.scal_val
+
+
+    def subgraph_shap(
+            self,
+            subgraph
+    ):
+        out = self.xs[0][subgraph].unsqueeze(0) if not self.batch_dim else self.xs[0][0, subgraph].unsqueeze(0)
+        for layer in self.layers:
+            out = layer(out)[0]
+
+        return out * self.scal_val
+
+    def symb_or_shap(
+            self,
+            featset,
+            context=None
+            ):
+        if context is None:
+            context = self.node_domain
+
+        return self.subgraph_shap(context) - \
+               self.subgraph_shap(
+                   list(set(context) - set(featset)))
+
 
 ######################
 # Quantum Chemistry #
