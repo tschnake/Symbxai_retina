@@ -47,6 +47,70 @@ class Node:
             walk.append(curr_node.node_rep)
         return tuple(walk)
 
+class SymbXAIBase:
+    def  __init__(
+
+    ):
+        self.feat_index_domain = []
+
+    def characteristic_fct(self, S):
+        pass
+
+
+    def exists(self,
+        featset,
+        context=None
+    ):
+        if context is None:
+            context = self.feat_index_domain
+
+        return self.characteristic_fct(set(context).add(featset)) - self.characteristic_fct(set(context).discard(featset))
+
+    def forall(self,
+        featset,
+        context=None
+    ):
+        if context is None:
+            context = self.feat_index_domain
+
+        return False
+
+    def without(self,
+        featset,
+        context=None
+    ):
+        if context is None:
+            context = self.feat_index_domain
+
+        return self.characteristic_fct(set(context).discard(featset))
+
+    def symb_or(self,
+        Q1, Q2,
+        context = None
+    ):
+        if self.is_atomic_formula(Q1) and self.is_atomic_formula(Q1):
+            pass
+
+    def symb_and(self,
+        Q1, Q2,
+        context = None
+    ):
+        # Using the inculsion exclusion principle for queries
+        pass
+
+    def symb_not(self,
+        Q1,
+        context = None
+    ):
+        pass
+
+
+    def query(self,
+        q = 'ATTRIBUTE 0; FROM *; WHERE exists S and exists T and without L;'
+    ):
+        pass
+
+
 
 class SymbXAI:
     def __init__(
@@ -226,6 +290,7 @@ class SymbXAI:
 
         return node_rel
 
+
     def symb_or(self,
         featset,
         context = None
@@ -256,19 +321,38 @@ class SymbXAI:
                             +'elements is not implemented yet!'
 
         if len(featset) <= 1:
-            return self.symb_or(featset,context=context)
+            if type(featset[0]) == list:
+                s = featset[0]
+            else:
+                s = featset
+
+            return self.symb_or(s,context=context)
 
         elif  len(featset) == 2:
-            s1, s2 = [featset[0]], [featset[1]]
+            if type(featset[0]) == list and type(featset[1]) == list:
+
+                s1, s2 = featset[0], featset[1]
+                featset = s1 + s2
+            else:
+                s1, s2 = [featset[0]], [featset[1]]
+
 
             return self.symb_or(s1,context=context) \
                     + self.symb_or(s2,context=context)  \
                     - self.symb_or(featset,context=context)
         elif len(featset) == 3:
-            s1, s2, s3 = [[fs] for fs in featset]
-            return self.symb_and( s1 + s2, context=context) \
-                    + self.symb_and(s2 + s3, context=context) \
-                    + self.symb_and(s1 + s3, context=context) \
+            if type(featset[0]) == list and \
+            type(featset[1]) == list and \
+            type(featset[2]) == list :
+
+                s1, s2, s3 = featset[0], featset[1], featset[2]
+                featset = s1 + s2 + s3
+            else:
+                s1, s2, s3 = [featset[0]], [featset[1], featset[2]]
+
+            return self.symb_and( [s1, s2], context=context) \
+                    + self.symb_and( [s2, s3], context=context) \
+                    + self.symb_and( [s1, s3] , context=context) \
                     - self.symb_or(s1, context=context) \
                     - self.symb_or(s2, context=context)  \
                     - self.symb_or(s3, context=context) \
@@ -667,7 +751,6 @@ class BERTSymbXAI(SymbXAI):
                 curr_subgraph_node = new_node
 
             return curr_subgraph_node.R.sum() * self.scal_val
-
 
 ######################
 # Quantum Chemistry #
