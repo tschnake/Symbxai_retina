@@ -3,6 +3,7 @@ from functools import reduce
 import numpy as np
 from ..model.transformer import ModifiedTinyTransformerForSequenceClassification,  ModifiedBertForSequenceClassification
 import schnetpack as spk
+from ..utils import powerset
 
 
 class Node:
@@ -348,7 +349,7 @@ class SymbXAI:
                 s1, s2, s3 = featset[0], featset[1], featset[2]
                 featset = s1 + s2 + s3
             else:
-                s1, s2, s3 = [featset[0]], [featset[1], featset[2]]
+                s1, s2, s3 = [featset[0]], [featset[1]], [featset[2]]
 
             return self.symb_and( [s1, s2], context=context) \
                     + self.symb_and( [s2, s3], context=context) \
@@ -358,10 +359,26 @@ class SymbXAI:
                     - self.symb_or(s3, context=context) \
                     + self.symb_or(featset, context=context)
 
+    def harsanyi_div(self,
+                    featset,
+                    dynamic_prog=False):
+        """
+        featset: We expect this to be a list of lists with featute indices given.
+        """
+
+        out = 0.
+        pow_featset = powerset(featset)
+        for subset in pow_featset:
+            flat_subset = [ idt for set in subset for idt in set ]
+            subset_val = self.subgraph_relevance(flat_subset)
+            out += (-1)**(len(featset) - len(subset)) * subset_val
+        return out
+
     def subgraph_relevance(
             self,
             subgraph,
-            from_walks=False
+            from_walks=False,
+            dynamic_prog=False
     ):
         if type(subgraph) != list:
             subgraph = list(subgraph)
@@ -756,7 +773,6 @@ class BERTSymbXAI(SymbXAI):
                 curr_subgraph_node = new_node
 
             return curr_subgraph_node.R.sum() * self.scal_val
-
 
     def subgraph_shap(
             self,
