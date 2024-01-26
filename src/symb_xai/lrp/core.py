@@ -57,7 +57,7 @@ class ModifiedLinear(Module):
 
         if zero_bias:
             self.fc.bias = torch.nn.Parameter(torch.zeros(self.fc.bias.shape))
-        
+
         self.transform = transform
         self.modified_fc = modified_layer(layer=fc, transform=transform)
 
@@ -70,12 +70,12 @@ class ModifiedLinear(Module):
         zp = stabilize(zp)
         return (zp.double() * (z.double() / zp.double()).data.double()).float()
 
-    
+
 class ModifiedLayerNorm(Module):
     def __init__(
             self,
             norm_layer: torch.nn.LayerNorm,
-            normalized_shape: Tuple,
+            # normalized_shape: Tuple,
             eps: float = 1e-12,
             zero_bias: bool = False
     ):
@@ -84,7 +84,7 @@ class ModifiedLayerNorm(Module):
         -------------------
 
         :param norm_layer: a norm layer (torch.nn.LayerNorm).
-        :param normalized_shape:
+        # :param normalized_shape:
         :param eps: a value added to the denominator for numerical stability
         :param zero_bias: set the layer's bias to zero. It is useful when checking the conservation property.
         """
@@ -92,11 +92,11 @@ class ModifiedLayerNorm(Module):
 
         if zero_bias:
             norm_layer.bias = torch.nn.Parameter(torch.zeros(norm_layer.bias.shape))
-        
+
         self.norm_layer = norm_layer
         self.weight = norm_layer.weight
         self.bias = norm_layer.bias
-        self.normalized_shape = normalized_shape
+        # self.normalized_shape = normalized_shape
         self.eps = eps
 
     def forward(
@@ -128,7 +128,7 @@ class ModifiedAct(Module):
         super(ModifiedAct, self).__init__()
         self.modified_act = nn.Identity()
         self.act = act
-    
+
     def forward(
         self,
         x

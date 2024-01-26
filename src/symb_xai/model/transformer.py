@@ -223,8 +223,9 @@ class ModifiedSelfOutput(nn.Module):
     def __init__(self, self_output):
         super(ModifiedSelfOutput, self).__init__()
         self.dense = ModifiedLinear(fc=self_output.dense, transform=gamma())
-        self.LayerNorm = ModifiedLayerNorm(norm_layer=self_output.LayerNorm,
-                                           normalized_shape=self_output.dense.weight.shape[1])
+        self.LayerNorm = ModifiedLayerNorm(norm_layer=self_output.LayerNorm
+                                           # normalized_shape=self_output.dense.weight.shape[1]
+                                           )
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
@@ -372,8 +373,10 @@ class ModifiedBertSelfOutput(nn.Module):
     def __init__(self, self_output):
         super(ModifiedBertSelfOutput, self).__init__()
         self.dense = ModifiedLinear(fc=self_output.dense, transform=gamma())
-        self.LayerNorm = ModifiedLayerNorm(norm_layer=self_output.LayerNorm,
-                                           normalized_shape=self_output.dense.weight.shape[1])
+        self.LayerNorm = ModifiedLayerNorm(norm_layer=self_output.LayerNorm
+                                           # normalized_shape=self_output.dense.weight.shape[1]
+                                           )
+
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
@@ -411,8 +414,9 @@ class ModifiedBertOutput(nn.Module):
     def __init__(self, output):
         super(ModifiedBertOutput, self).__init__()
         self.dense = ModifiedLinear(fc=output.dense, transform=gamma())
-        self.LayerNorm = ModifiedLayerNorm(norm_layer=output.LayerNorm,
-                                           normalized_shape=output.dense.weight.shape[1])
+        self.LayerNorm = ModifiedLayerNorm(norm_layer=output.LayerNorm
+                                           # normalized_shape=output.dense.weight.shape[1]
+                                           )
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)

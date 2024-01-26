@@ -49,69 +49,82 @@ class Node:
             walk.append(curr_node.node_rep)
         return tuple(walk)
 
-class SymbXAIBase:
-    def  __init__(
+# class SymbXAIBase:
+#     def  __init__(
+#
+#     ):
+#         self.feat_index_domain = []
+#
+#     def characteristic_fct(self, S):
+#         pass
+#
+#
+#     def exists(self,
+#         featset,
+#         context=None
+#     ):
+#         if context is None:
+#             context = self.feat_index_domain
+#
+#         return self.characteristic_fct(set(context).add(featset)) - self.characteristic_fct(set(context).discard(featset))
+#
+#     def forall(self,
+#         featset,
+#         context=None
+#     ):
+#         if context is None:
+#             context = self.feat_index_domain
+#
+#         return False
+#
+#     def without(self,
+#         featset,
+#         context=None
+#     ):
+#         if context is None:
+#             context = self.feat_index_domain
+#
+#         return self.characteristic_fct(set(context).discard(featset))
+#
+#     def symb_or(self,
+#         Q1, Q2,
+#         context = None
+#     ):
+#         if self.is_atomic_formula(Q1) and self.is_atomic_formula(Q1):
+#             pass
+#
+#     def symb_and(self,
+#         Q1, Q2,
+#         context = None
+#     ):
+#         # Using the inculsion exclusion principle for queries
+#         pass
+#
+#     def symb_not(self,
+#         Q1,
+#         context = None
+#     ):
+#         pass
+#
+#
+#     def query(self,
+#         q = 'ATTRIBUTE 0; FROM *; WHERE exists S and exists T and without L;'
+#     ):
+#         pass
 
-    ):
-        self.feat_index_domain = []
+def attribute(qk,pow_s, qks, explainer, eta_mode='shap'):
+    out = 0.
+    for l in pow_s:
+        flat_l = [item for sublist in l for item in sublist]
+        harsanyi_div = explainer.harsanyi_div(l)
+        if eta_mode == 'shap':
+            eta_l = 1/sum([float(q(l)) for q in qks.values()])
+        else:
+            # This is actually PreDiff
+            eta_l = 1.
 
-    def characteristic_fct(self, S):
-        pass
-
-
-    def exists(self,
-        featset,
-        context=None
-    ):
-        if context is None:
-            context = self.feat_index_domain
-
-        return self.characteristic_fct(set(context).add(featset)) - self.characteristic_fct(set(context).discard(featset))
-
-    def forall(self,
-        featset,
-        context=None
-    ):
-        if context is None:
-            context = self.feat_index_domain
-
-        return False
-
-    def without(self,
-        featset,
-        context=None
-    ):
-        if context is None:
-            context = self.feat_index_domain
-
-        return self.characteristic_fct(set(context).discard(featset))
-
-    def symb_or(self,
-        Q1, Q2,
-        context = None
-    ):
-        if self.is_atomic_formula(Q1) and self.is_atomic_formula(Q1):
-            pass
-
-    def symb_and(self,
-        Q1, Q2,
-        context = None
-    ):
-        # Using the inculsion exclusion principle for queries
-        pass
-
-    def symb_not(self,
-        Q1,
-        context = None
-    ):
-        pass
-
-
-    def query(self,
-        q = 'ATTRIBUTE 0; FROM *; WHERE exists S and exists T and without L;'
-    ):
-        pass
-
+        out += eta_l * harsanyi_div * float(qk(l))
+    return out.item()
 
 
 class SymbXAI:
@@ -148,7 +161,10 @@ class SymbXAI:
         self.xs = [x.data]
         for layer in layers:
             x = layer(x)
+            if isinstance(x, tuple):
+                x = x[0]
             self.xs.append(x.data)
+
 
         # Set up for each layer the dependencies.
         if isinstance(lamb, list):
@@ -175,7 +191,12 @@ class SymbXAI:
         act = act.data.requires_grad_(True)
 
         # Forward layer guided at the node representation.
-        z = layer(act)[node_rep] if not self.batch_dim else layer(act)[0, node_rep]
+        # z = layer(act)[node_rep] if not self.batch_dim else layer(act)[0, node_rep]
+        z = layer(act)
+        if isinstance(z, tuple):
+            z = z[0][node_rep] if not self.batch_dim else z[0][0, node_rep]
+        else:
+            z = z[node_rep] if not self.batch_dim else z[0, node_rep]
 
         assert z.shape == R.shape, f'z.shape {z.shape}, R.shape {R.shape}'
 
@@ -370,7 +391,11 @@ class SymbXAI:
         out = 0.
         pow_featset = powerset(featset)
         for subset in pow_featset:
-            flat_subset = [ idt for set in subset for idt in set ]
+            if type(subset[0]) == list:
+                # It's a list of lists, please flatten.
+                flat_subset = [ idt for set in subset for idt in set ]
+            else: # It's just a list of indices
+                flat_subset = subset
             subset_val = self.subgraph_relevance(flat_subset)
             out += (-1)**(len(featset) - len(subset)) * subset_val
         return out
@@ -707,7 +732,6 @@ class BERTSymbXAI(SymbXAI):
             subgraph,
             from_walks=False
     ):
-
         # TODO: Change the code for from_walks=True
         if from_walks:
             if self.walk_rels_tens is None:

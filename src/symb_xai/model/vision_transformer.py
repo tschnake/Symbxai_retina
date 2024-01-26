@@ -2,8 +2,8 @@ import torch
 from transformers import ViTForImageClassification
 import math
 from torch import nn as nn
-from lrp.rules import gamma
-from lrp.core import ModifiedLinear, ModifiedLayerNorm, ModifiedAct
+from ..lrp.rules import gamma
+from ..lrp.core import ModifiedLinear, ModifiedLayerNorm, ModifiedAct
 
 
 class ModifiedViTSelfAttention(nn.Module):

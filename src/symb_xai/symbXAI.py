@@ -3,6 +3,7 @@ from functools import reduce
 # import schnetpack as spk
 import numpy as np
 
+raise RuntimeError('this doc is a dublicate')
 
 class Node:
     """ Helping class for the explainer functions"""
