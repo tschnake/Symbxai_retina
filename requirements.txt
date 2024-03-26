@@ -4,5 +4,7 @@ click
 transformers
 tqdm
 datasets
--e .
 networkx
+dgl
+pandas
+pydantic
