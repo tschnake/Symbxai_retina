@@ -6,5 +6,6 @@ tqdm
 datasets
 networkx
 dgl
+nltk
 pandas
 pydantic
