@@ -1,0 +1,8 @@
+numpy
+torch
+click
+transformers
+tqdm
+datasets
+-e .
+networkx
