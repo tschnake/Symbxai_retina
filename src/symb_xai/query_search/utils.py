@@ -1,4 +1,4 @@
-import time, numpy, torch
+import time, numpy, torch, mpmath
 # import numpy
 from itertools import pairwise
 from tqdm import tqdm
@@ -94,7 +94,7 @@ def weight_query_attr_directly(all_exh_outs, modes):
         elif 'significance' in mode:
             alpha = float(mode.split('-')[1])
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f'The weight mode {mode} is not implemented.')
 
         for key, val in all_exh_outs.items():
             order=len(key)
