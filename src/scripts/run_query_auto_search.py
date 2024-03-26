@@ -129,7 +129,7 @@ def main(sample_range,
         # verbose = True
         logfile_str = logfolder  + f'sst_search_exhaustive_sample-{ids}_max_and_order-{max_and_order}_datamode-{datamode}.txt'
 
-        all_outvals = {}
+        # all_outvals = {}
 
         # for i in  intersting_samples + list(range(35, 50)): #12, 13, 14, 15, 16, 17, 18]:
         with open(logfile_str, 'w') as outfile:
@@ -171,8 +171,9 @@ def main(sample_range,
                                                                # maxvalsnum=maxvalsnum,
                                                                #  minvalsnum=minvalsnum,
                                                                verbose=True)
-                all_outvals[ids] = outvals
-                all_weighted_outs = weight_query_attr_directly(all_exh_outs, weight_modes)
+                # all_outvals[ids] = outvals
+
+                all_weighted_outs = weight_query_attr_directly(all_vals, weight_modes)
 
             elif comp_mode == 'harsanyi':
                 # First, setup and save the harsanyi dividends
