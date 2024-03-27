@@ -116,7 +116,7 @@ def main(sample_range,
     sst_model.eval()
     pretrained_embeddings = sst_model.bert.embeddings
     tokenizer = transformers.BertTokenizer.from_pretrained("textattack/bert-base-uncased-SST-2")
-    if datamode == 'sst_hugginface':
+    if datamode == 'sst_huggingface':
         sst_dataset = load_dataset("sst2", "default")
 
     elif datamode == 'sst_treebank':
@@ -203,7 +203,6 @@ def main(sample_range,
 
         with open(resultfile_str, 'wb') as resultfile:
             pickle.dump(all_weighted_outs, resultfile)
-
 
 if __name__ == '__main__':
     main()
