@@ -193,13 +193,13 @@ def main(sample_range,
             else:
                 raise NotImplementedError
 
-            for feats, val in outvals.items():
-                cout = ' & '.join([tokens[I] for I in feats]) + '\t---> ' + str(round(val.item(), 3))
-                if len(feats) == max_and_order:
-                    cout += '\n'
-                print(cout, file=outfile)
-            cout = '-------------------------------------------------------------------'
-            print(cout, file=outfile)
+            # for feats, val in outvals.items():
+            #     cout = ' & '.join([tokens[I] for I in feats]) + '\t---> ' + str(round(val.item(), 3))
+            #     if len(feats) == max_and_order:
+            #         cout += '\n'
+            #     print(cout, file=outfile)
+            # cout = '-------------------------------------------------------------------'
+            # print(cout, file=outfile)
 
         with open(resultfile_str, 'wb') as resultfile:
             pickle.dump(all_weighted_outs, resultfile)
