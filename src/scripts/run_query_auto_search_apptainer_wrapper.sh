@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=my_cpu_job
+#SBATCH --job-name=search_symbolic_queries
 #SBATCH --partition=cpu-test
 #SBATCH --gpus-per-node=0
 #SBATCH --ntasks-per-node=2
