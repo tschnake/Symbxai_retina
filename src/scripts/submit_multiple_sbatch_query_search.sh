@@ -18,7 +18,7 @@ else
   harsanyi_maxorder=5
   max_setsize=-1
   treebank_ids="259 138 1481 4113"
-  huggingface_ids="0 1 2 3 4 5 6 7 8 9"
+  huggingface_ids="0 1 2 4 5 6 7 8 10 11"
 fi
 
 
