@@ -24,14 +24,14 @@ fi
 
 datamode='sst_treebank'
 for ids in $treebank_ids; do
-  sbatch --mem=32G run_query_auto_search_apptainer_wrapper.sh --sample_range "[${ids}]" --comp_mode 'harsanyi' --max_and_order ${max_and_order} --datamode "${datamode}" --harsanyi_maxorder ${harsanyi_maxorder} --weight_modes "['occlusion']" --max_setsize ${max_setsize} --logfolder "${logfolder}" --resultfolder "${resultfolder}" &
+  sbatch --mem=64G run_query_auto_search_apptainer_wrapper.sh --sample_range "[${ids}]" --comp_mode 'harsanyi' --max_and_order ${max_and_order} --datamode "${datamode}" --harsanyi_maxorder ${harsanyi_maxorder} --weight_modes "['occlusion']" --max_setsize ${max_setsize} --logfolder "${logfolder}" --resultfolder "${resultfolder}" &
   # sbatch --mail-user=t.schnake@tu-berlin.de run_query_auto_search_apptainer_wrapper.sh --sample_range "[${ids}]" --comp_mode 'directly' --max_and_order ${max_and_order} --datamode "${datamode}" --weight_modes "['occlusion','sigificance-1','significance-2','significance-3']" --logfolder "${logfolder}" --resultfolder "${resultfolder}" &
   #sbatch --mail-user=t.schnake@tu-berlin.de run_query_auto_search_apptainer_wrapper.sh --sample_range [259] --comp_mode 'harsanyi' --max_and_order 3 --harsanyi_maxorder 1 --weight_modes "['occlusion','significance-1','significance-2','significance-3']" --logfolder ${logfolder} --resultfolder ${resultfolder} &
 done
 
 datamode='sst_huggingface'
 for ids in $huggingface_ids; do
-  sbatch --mem=32G run_query_auto_search_apptainer_wrapper.sh --sample_range "[${ids}]" --comp_mode 'harsanyi' --max_and_order ${max_and_order} --datamode "${datamode}" --harsanyi_maxorder ${harsanyi_maxorder} --weight_modes "['occlusion']" --max_setsize ${max_setsize} --logfolder "${logfolder}" --resultfolder "${resultfolder}" &
+  sbatch --mem=64G run_query_auto_search_apptainer_wrapper.sh --sample_range "[${ids}]" --comp_mode 'harsanyi' --max_and_order ${max_and_order} --datamode "${datamode}" --harsanyi_maxorder ${harsanyi_maxorder} --weight_modes "['occlusion']" --max_setsize ${max_setsize} --logfolder "${logfolder}" --resultfolder "${resultfolder}" &
   # sbatch --mail-user=t.schnake@tu-berlin.de run_query_auto_search_apptainer_wrapper.sh --sample_range "[${ids}]" --comp_mode 'directly' --max_and_order ${max_and_order} --datamode "${datamode}" --weight_modes "['occlusion','sigificance-1','significance-2','significance-3']" --logfolder "${logfolder}" --resultfolder "${resultfolder}" &
   #sbatch --mail-user=t.schnake@tu-berlin.de run_query_auto_search_apptainer_wrapper.sh --sample_range [259] --comp_mode 'harsanyi' --max_and_order 3 --harsanyi_maxorder 1 --weight_modes "['occlusion','significance-1','significance-2','significance-3']" --logfolder ${logfolder} --resultfolder ${resultfolder} &
 done
