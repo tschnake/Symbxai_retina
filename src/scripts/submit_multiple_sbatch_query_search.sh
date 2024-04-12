@@ -4,7 +4,7 @@ logfolder="/home/thomas_schnake/ResearchProjects/symbXAI_project/local_experimen
 resultfolder="/home/thomas_schnake/ResearchProjects/symbXAI_project/local_experiments/intermediate_results/"
 
 # Define the variable dry_run
-dry_run="true"
+dry_run="False"
 
 # Check if dry_run is true
 if [ "$dry_run" = "true" ]; then
