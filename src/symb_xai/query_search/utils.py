@@ -120,11 +120,11 @@ def weight_query_attr_harsanyi(all_queries,har_div, modes):
 
     return query_attr
 
-def comp_all_harsanyi_sst(explainer, harsanyi_maxorder=5):
+def comp_all_harsanyi_sst(explainer, harsanyi_maxorder=5, do_shuffling =False):
 
     all_feats = explainer.node_domain
     power_feats = powerset(all_feats, K=harsanyi_maxorder)
-    shuffle(power_feats) # only to see better in the tqdm timeline how long it takes.
+    if do_shuffling: shuffle(power_feats) # only to see better in the tqdm timeline how long it takes.
 
     har_div = {}
 
@@ -135,14 +135,10 @@ def comp_all_harsanyi_sst(explainer, harsanyi_maxorder=5):
 
 def setup_queries(  feat_domain,
                     max_and_order,
-                    max_setsize,
+                    max_setsize= float('inf'),
                     max_indexdist=1,
-                    mode='set conjuction'):
-
-    assert mode == 'set conjuction', f'The mode {mode} is not implemented yet.'
-    assert sorted(feat_domain) == feat_domain, 'has to be sorted'
-
-    all_sets = powerset(feat_domain , K=max_setsize)
+                    mode='conj. disj. reasonably mixed',
+                    neg_tokens=None):
 
     def check_pairwise_dist(elem_list, max_indexdist):
         if len(elem_list) == 1:
@@ -150,11 +146,18 @@ def setup_queries(  feat_domain,
         else:
             return all([ abs( elem_list[i+1] - elem_list[i]) <= max_indexdist for i in range(len(elem_list)-1) ])
 
+    assert sorted(feat_domain) == feat_domain, 'has to be sorted'
+    # make sure max_setsize is properly parsed.
+    if max_setsize is None or max_setsize < 0:
+        max_setsize= float('inf')
+
+    # neglect tokens we don't want. usually the [cls] and [sep] token in the transormer models
+    if neg_tokens is not None:
+        feat_domain = [feat for feat in feat_domain if feat not in neg_tokens]
+
+    all_sets = powerset(feat_domain , K=max_setsize)
     all_sets = [ fset for fset  in all_sets if check_pairwise_dist(fset, max_indexdist) ]
 
-    query_fct = {}
-    query_attr = {}
-    # query_str = {}
     queries = []
     for order in range(1,max_and_order +1):
         # Make the feat-grid:
@@ -165,12 +168,71 @@ def setup_queries(  feat_domain,
 
         for pset_comb_ids in all_psets_comb_ids:
             # specify the query
-
             curr_sets = tuple([tuple(all_sets[ids]) for ids in pset_comb_ids])
-            bool_q = lambda L, sets=curr_sets : all([ any( [I in L for I in subset ]) for subset in sets ])
-            q = Query(bool_fct=bool_q, hash_rep=curr_sets)
+            if mode == 'set conjuction':
+                ...
+            elif mode == 'conj. disj. reasonably mixed':
+                # Check if sets are pairwise disjoint
+                if sum(map(len, curr_sets)) != len(set().union(*curr_sets)): continue
+                else: ...
+
+            else:
+                raise NotImplementedError(f'The mode {mode} is not implemented yet.')
+
+            # bool_q = lambda L, sets=curr_sets : all([ any( [I in L for I in subset ]) for subset in sets ])
+            # def bool_q(L, sets=curr_sets):
+                # return all([ any( [I in L for I in subset ]) for subset in sets ])
+
+            # q = Query(bool_fct=bool_q, hash_rep=curr_sets)
+            q = Query(hash_rep=curr_sets)
             queries.append(q)
 
-            # query_fct[curr_sets] = q
-
     return queries
+
+def calc_corr(arg):
+    ''' helping function for the parallelization'''
+    def m(x, w):
+        """Weighted Mean"""
+        return numpy.sum(x * w) / numpy.sum(w)
+
+    def cov(x, y, w):
+        """Weighted Covariance"""
+        return numpy.sum(w * (x - m(x, w)) * (y - m(y, w))) / numpy.sum(w)
+
+    def corr(x, y, w):
+        """Weighted Correlation"""
+        return cov(x, y, w) / numpy.sqrt(cov(x, x, w) * cov(y, y, w))
+
+    q, hars_div, weight_mode, all_queries = arg
+    supp = tuple([S for S in hars_div.keys() if q(S)])
+    q_vec, val_vec, weight_vec = map(numpy.array, zip(*[(int(q(S)), val, 1) for S, val in hars_div.items() ]))
+
+    q.attribution = corr(q_vec, val_vec, weight_vec)
+    q.set_support(supp)
+
+    return q
+
+def calc_attr_supp(arg):
+    ''' helping function for the parallelization'''
+    q, hars_div, weight_mode, all_queries = arg
+    attr = 0
+    supp = ()
+    for S, val in hars_div.items():
+        if q(S):
+            if weight_mode == 'occlusion':
+                attr += val
+            elif weight_mode == 'shapley':
+                weight = sum([int(query(S)) for query in all_queries ])
+                attr += val/weight
+            elif weight_mode == 'occlusion error':
+                ...
+            else:
+                raise NotImplementedError(f'Weight mode {weight_mode} is not implemented yet.')
+            supp += (S,)
+
+        elif not q(S) and weight_mode == 'occlusion error':
+            attr += val**2
+
+    q.set_support(supp)
+    q.attribution = attr
+    return q

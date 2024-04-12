@@ -17,10 +17,6 @@ from dgl.data import SSTDataset
 from datasets import load_dataset
 
 from symb_xai.visualization.utils import html_heatmap, make_text_string
-# from IPython.display import display, HTML, Latex
-
-# import matplotlib.pyplot as plt
-# import matplotlib
 
 from symb_xai.utils import powerset
 from symb_xai.lrp.symbolic_xai import attribute
@@ -47,14 +43,6 @@ class PythonLiteralOption(click.Option):
             except:
                 raise click.BadParameter(value)
 
-'''
-Add the following options:
-weight_modes: A list of identifiers that describe how to weight the attributions
-comp_mode   : The mode how to compute the attributions. Either 'directly' or 'harsanyi'.
-harsanyi_maxorder: Specifies until what order the Harsanyi dividens will be computed.
-query_mode  : What kind of queries will be attributed
-max_setsize : Maximum size of feature sets in the queries. Similar to: the maxium order of the OR operation.
-'''
 # Get arguments
 @click.command()
 @click.option('--sample_range',
@@ -64,7 +52,7 @@ max_setsize : Maximum size of feature sets in the queries. Similar to: the maxiu
 @click.option('--max_and_order',
                 type=int,
                 default=1,
-                help='Maxim order of conjunctive (AND) operation.')
+                help='Maximum order of conjunctive (AND) operation.')
 @click.option('--logfolder',
                 type=str,
                 default='/Users/thomasschnake/Research/Projects/symbolic_xai/local_experiments/logs/query_auto_search/',
@@ -91,7 +79,7 @@ max_setsize : Maximum size of feature sets in the queries. Similar to: the maxiu
               help='Specifies until what order the Harsanyi dividends will be computed.')
 @click.option('--query_mode',
               type=str,
-              default='set conjuction',
+              default='conj. disj. reasonably mixed',
               help='What kind of queries will be attributed.')
 @click.option('--max_setsize',
               type=int,
@@ -185,9 +173,10 @@ def main(sample_range,
                 # Second, setup and attribute the queries
                 all_queries = setup_queries(explainer.node_domain,
                                     max_and_order,
-                                    max_setsize,
+                                    max_setsize=max_setsize,
                                     max_indexdist=1,
-                                    mode=query_mode)
+                                    mode=query_mode,
+                                    neg_tokens=[0,len(explainer.node_domain) -1 ])
 
                 all_weighted_outs = weight_query_attr_harsanyi(all_queries,har_div, weight_modes)
             else:
