@@ -5,6 +5,7 @@ from tqdm import tqdm
 from symb_xai.model.transformer import bert_base_uncased_model
 from symb_xai.lrp.symbolic_xai import BERTSymbXAI
 from symb_xai.utils import powerset, Query
+from symb_xai.visualization.query_search import setids2logicalANDquery
 from random import shuffle
 from transformers import BertTokenizer
 
@@ -120,9 +121,12 @@ def weight_query_attr_harsanyi(all_queries,har_div, modes):
 
     return query_attr
 
-def comp_all_harsanyi_sst(explainer, harsanyi_maxorder=5, do_shuffling =False):
+def comp_all_harsanyi_sst(explainer, harsanyi_maxorder=5, do_shuffling =False, neg_tokens=None):
 
-    all_feats = explainer.node_domain
+    if neg_tokens is None:
+        all_feats = explainer.node_domain
+    else:
+        all_feats = [ feat for feat in explainer.node_domain if feat not in neg_tokens ]
     power_feats = powerset(all_feats, K=harsanyi_maxorder)
     if do_shuffling: shuffle(power_feats) # only to see better in the tqdm timeline how long it takes.
 
@@ -133,7 +137,28 @@ def comp_all_harsanyi_sst(explainer, harsanyi_maxorder=5, do_shuffling =False):
 
     return har_div
 
+def calc_weights(weight_mode, hars_div, all_queries):
+    if weight_mode == 'occlusion' or 'significance' in weight_mode:
+        weight_fct = lambda S : 1
+    elif weight_mode == 'shapley':
+        def weight_fct(S, padding_val = 0):
+            nb_positive_q = sum([int(curr_q(S)) for curr_q in all_queries])
+            if nb_positive_q == 0:
+                return padding_val
+            else:
+                return 1/nb_positive_q
+    else:
+        raise NotImplementedError(f"Weight mode '{weight_mode}' is not implemented.")
+
+    weight_vec =[]
+    for S, _ in tqdm(hars_div.items(), desc=f'Query weights for {weight_mode}.'):
+        weight_vec.append(weight_fct(S))
+    weight_vec = numpy.array(weight_vec)
+
+    return weight_vec
+
 def setup_queries(  feat_domain,
+                    tokens,
                     max_and_order,
                     max_setsize= float('inf'),
                     max_indexdist=1,
@@ -157,8 +182,18 @@ def setup_queries(  feat_domain,
 
     all_sets = powerset(feat_domain , K=max_setsize)
     all_sets = [ fset for fset  in all_sets if check_pairwise_dist(fset, max_indexdist) ]
+    if mode in ['conj. disj. neg. reasonably mixed', 'conj. disj. (neg. disj.) reasonably mixed' ]:
+        all_sets += [ [idx -len(tokens) for idx in fset] for fset in all_sets] # negative indices mean negating a set.
+
+    def queryhash2featset(query_hash):
+        # if type(query_hash[0]) == frozenset:
+        featsets = frozenset([frozenset([ idx if idx >= 0 else idx + len(tokens) for idx in fset ] ) for fset in query_hash])
+        # else:
+        #     featsets = frozenset([ idx if idx >= 0 else idx + len(tokens) for idx in query_hash ] )
+        return featsets
 
     queries = []
+    all_hashs_check = set()
     for order in range(1,max_and_order +1):
         # Make the feat-grid:
         grid = [numpy.arange(0, len(all_sets))]*(order)
@@ -168,44 +203,74 @@ def setup_queries(  feat_domain,
 
         for pset_comb_ids in all_psets_comb_ids:
             # specify the query
-            curr_sets = tuple([tuple(all_sets[ids]) for ids in pset_comb_ids])
+            curr_sets = frozenset([frozenset(all_sets[ids]) for ids in pset_comb_ids])
+
+
+
             if mode == 'set conjuction':
-                ...
+                str_rep = setids2logicalANDquery(curr_sets, tokens)
             elif mode == 'conj. disj. reasonably mixed':
                 # Check if sets are pairwise disjoint
                 if sum(map(len, curr_sets)) != len(set().union(*curr_sets)): continue
                 else: ...
+                str_rep = setids2logicalANDquery(curr_sets, tokens)
+
+            elif mode == 'conj. disj. neg. reasonably mixed':
+
+                featsets = queryhash2featset(curr_sets)
+                if sum(map(len, featsets)) != len(set().union(*featsets)): continue
+                else: ...
+                str_rep = setids2logicalANDquery(curr_sets, tokens)
+
+            elif mode == 'conj. disj. (neg. disj.) reasonably mixed':
+                featsets = queryhash2featset(curr_sets)
+                if sum(map(len, featsets)) != len(set().union(*featsets)): continue
+                str_rep = setids2logicalANDquery(curr_sets, tokens, mode= 'neg. disj.')
+
+                # make the frozenset of negative values into multple 1 item frozensets
+                temp_sets = frozenset()
+                for cset in curr_sets:
+                    if all([feat >= 0 for feat in cset]):
+                        temp_sets |= {cset}
+                    elif all([feat < 0 for feat in cset]):
+                        temp_sets |= frozenset([frozenset({feat}) for feat in cset ])
+                    else:
+                        raise NotImplementedError('the datastructure is wrong')
+                curr_sets = temp_sets
 
             else:
                 raise NotImplementedError(f'The mode {mode} is not implemented yet.')
 
-            # bool_q = lambda L, sets=curr_sets : all([ any( [I in L for I in subset ]) for subset in sets ])
-            # def bool_q(L, sets=curr_sets):
-                # return all([ any( [I in L for I in subset ]) for subset in sets ])
+            if curr_sets not in all_hashs_check:
+                all_hashs_check |= {curr_sets}
 
-            # q = Query(bool_fct=bool_q, hash_rep=curr_sets)
-            q = Query(hash_rep=curr_sets)
-            queries.append(q)
+                q = Query(hash_rep=curr_sets, str_rep=str_rep, nb_feats=len(tokens))
+                queries.append(q)
 
     return queries
 
+def m(x, w):
+    """Weighted Mean"""
+    return numpy.sum(x * w) / numpy.sum(w)
+
+def cov(x, y, w):
+    """Weighted Covariance"""
+    return numpy.sum(w * (x - m(x, w)) * (y - m(y, w))) / numpy.sum(w)
+
+def corr(x, y, w):
+    """Weighted Correlation"""
+    divisor = numpy.sqrt(cov(x, x, w) * cov(y, y, w))
+    if divisor == 0:
+        return 0
+    else:
+        return cov(x, y, w) / divisor
+
 def calc_corr(arg):
     ''' helping function for the parallelization'''
-    def m(x, w):
-        """Weighted Mean"""
-        return numpy.sum(x * w) / numpy.sum(w)
-
-    def cov(x, y, w):
-        """Weighted Covariance"""
-        return numpy.sum(w * (x - m(x, w)) * (y - m(y, w))) / numpy.sum(w)
-
-    def corr(x, y, w):
-        """Weighted Correlation"""
-        return cov(x, y, w) / numpy.sqrt(cov(x, x, w) * cov(y, y, w))
-
-    q, hars_div, weight_mode, all_queries = arg
+    q, hars_div, weight_vec = arg
     supp = tuple([S for S in hars_div.keys() if q(S)])
-    q_vec, val_vec, weight_vec = map(numpy.array, zip(*[(int(q(S)), val, 1) for S, val in hars_div.items() ]))
+
+    q_vec, val_vec = map(numpy.array, zip(*[(int(q(S)), val) for S, val in hars_div.items() ]))
 
     q.attribution = corr(q_vec, val_vec, weight_vec)
     q.set_support(supp)
@@ -214,24 +279,26 @@ def calc_corr(arg):
 
 def calc_attr_supp(arg):
     ''' helping function for the parallelization'''
-    q, hars_div, weight_mode, all_queries = arg
+    q, hars_div, weight_vec = arg
     attr = 0
     supp = ()
-    for S, val in hars_div.items():
+    for weight, (S, val) in zip(weight_vec,hars_div.items()):
         if q(S):
-            if weight_mode == 'occlusion':
-                attr += val
-            elif weight_mode == 'shapley':
-                weight = sum([int(query(S)) for query in all_queries ])
-                attr += val/weight
-            elif weight_mode == 'occlusion error':
-                ...
-            else:
-                raise NotImplementedError(f'Weight mode {weight_mode} is not implemented yet.')
-            supp += (S,)
+            attr += weight * val
 
-        elif not q(S) and weight_mode == 'occlusion error':
-            attr += val**2
+        #     if weight_mode == 'occlusion':
+        #         attr += val
+        #     elif weight_mode == 'shapley':
+        #         weight = sum([int(query(S)) for query in all_queries ])
+        #         attr += val/weight
+        #     elif weight_mode == 'occlusion error':
+        #         ...
+        #     else:
+        #         raise NotImplementedError(f'Weight mode {weight_mode} is not implemented yet.')
+            supp += (S,)
+        #
+        # elif not q(S) and weight_mode == 'occlusion error':
+        #     attr += val**2
 
     q.set_support(supp)
     q.attribution = attr

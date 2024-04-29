@@ -15,21 +15,23 @@ def powerset(s, K=float('inf'), with_empty=False):
     return  pset
 
 class Query():
-    def __init__(self, bool_fct= None, str_rep=None, hash_rep=None):
+    def __init__(self, bool_fct= None, str_rep=None, hash_rep=None, nb_feats=None):
         self.bool_fct = bool_fct
         self.str_rep  = str_rep
         self.hash = hash_rep
+        self.nb_feats = nb_feats
         # maybe explicitly giving the subsets for which this query is true? This speeds up the attribution
         self.support = None
 
+
     def __call__(self, feat_set: tuple[int]):
-        if self.bool_fct is not None:
-            return self.bool_fct(feat_set)
-        elif type(self.hash[0]) == tuple:
+        # if self.bool_fct is not None:
+        #     return self.bool_fct(feat_set)
+        # elif type(self.hash[0]) == frozenset:
             # We can work with this hash type:
-            return all([ any( [I in feat_set for I in subset ]) for subset in self.hash ])
-        else:
-            raise NotImplementedError
+        return all([ any( [(I in feat_set) if I >= 0 else (I + self.nb_feats not in feat_set) for I in subset ]) for subset in self.hash ])
+        # else:
+        #     raise NotImplementedError
 
     def get_support(self):
         if self.support is not None:
@@ -37,25 +39,24 @@ class Query():
         else:
             return False
 
-    def set_support(self, sets=None, node_domain=None, max_order=5 ):
-        if sets is not None:
-            self.support = sets
-        elif type(self.hash) == tuple and type(self.hash[0]) == tuple:
-            return None
-            self.support = []
-            grid = numpy.meshgrid(*self.hash)
-            grid = [I.flatten() for I in grid]
-            pset_combis = [feats for feats in zip(*grid) if all(a < b for a, b in pairwise(feats))]
-
-            for feat_seq in pset_combis:
-                all_context = powerset([index for index in node_domain if index not in feat_seq],
-                                        K=max_order - len(feat_seq),
-                                        with_empty=True)
-
-                for context_feats in all_context:
-                    new_set = feat_seq + tuple(context_feats)
-                    new_set = tuple(sorted(new_set))
-                    self.support.append(new_set)
+    def set_support(self, sets, node_domain=None, max_order=5 ):
+        self.support = sets
+        # elif type(self.hash) == frozenset and type(self.hash[0]) == frozenset:
+        #     return None
+        #     self.support = []
+        #     grid = numpy.meshgrid(*self.hash)
+        #     grid = [I.flatten() for I in grid]
+        #     pset_combis = [feats for feats in zip(*grid) if all(a < b for a, b in pairwise(feats))]
+        #
+        #     for feat_seq in pset_combis:
+        #         all_context = powerset([index for index in node_domain if index not in feat_seq],
+        #                                 K=max_order - len(feat_seq),
+        #                                 with_empty=True)
+        #
+        #         for context_feats in all_context:
+        #             new_set = feat_seq + tuple(context_feats)
+        #             new_set = tuple(sorted(new_set))
+        #             self.support.append(new_set)
 
 
 class FeatSet():

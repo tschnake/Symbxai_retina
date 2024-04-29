@@ -56,19 +56,49 @@ class ModifiedLinear(Module):
         self.fc = fc
 
         if zero_bias:
-            self.fc.bias = torch.nn.Parameter(torch.zeros(self.fc.bias.shape))
+            if fc.bias is not None:
+                self.fc.bias = torch.nn.Parameter(
+                    torch.zeros(self.fc.bias.shape, dtype=torch.float, device="cuda")
+                )
 
         self.transform = transform
-        self.modified_fc = modified_layer(layer=fc, transform=transform)
+
+        self.modifiers = [
+            modified_layer(layer=self.fc, transform=gamma(gam=0.15, minimum=0)),  # Pos
+            modified_layer(layer=self.fc, transform=gamma(gam=0.15, maximum=0, modify_bias=False)),  # Neg
+            modified_layer(layer=self.fc, transform=gamma(gam=0.15, maximum=0)),  # Neg
+            modified_layer(layer=self.fc, transform=gamma(gam=0.15, minimum=0, modify_bias=False))  # Pos
+        ]
 
     def forward(
             self,
             x: torch.Tensor
     ) -> torch.Tensor:
+
         z = self.fc(x)
-        zp = self.modified_fc(x)
-        zp = stabilize(zp)
-        return (zp.double() * (z.double() / zp.double()).data.double()).float()
+
+        inputs = [
+            x.clamp(min=0),  # Pos
+            x.clamp(max=0),  # Neg
+            x.clamp(min=0),  # Pos
+            x.clamp(max=0)   # Neg
+        ]
+
+        outputs = [
+            self.modifiers[0](inputs[0]),
+            self.modifiers[1](inputs[1]),
+            self.modifiers[2](inputs[2]),
+            self.modifiers[3](inputs[3])
+        ]
+
+        zp_pos = outputs[0] + outputs[1]
+        zp_neg = outputs[2] + outputs[3]
+
+        zp_pos *= (z > 1e-6).float()
+        zp_neg *= (z < 1e-6).float()
+
+        zp = zp_pos + zp_neg
+        return (zp.float() * torch.nan_to_num(z.float() / zp.float()).data.float()).float()
 
 
 class ModifiedLayerNorm(Module):
