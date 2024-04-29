@@ -1,5 +1,5 @@
 numpy
-torch
+torch>=1.9.0,<=2.2.1
 click
 transformers
 tqdm
