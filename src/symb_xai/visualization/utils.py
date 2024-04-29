@@ -81,10 +81,17 @@ def html_heatmap(words, scores, cmap_name="bwr"):
 
 def make_text_string(lsent):
     sentence = ''
+    # import pdb; pdb.set_trace()
+
     for i, token in enumerate(lsent):
-        if token not in [',', '.', ';', ':', "n't", "'s", "''", "'d", "'re", "'m'"] and i != 0 and sentence[
-                                                                                                   -2:] != "``":
+        if token not in ['&not;(',',', '.', ';', ':', "n't", "'s", "''", "'d", "'re", "'m'", "s", "'"] \
+         and (i != 0) \
+         and (sentence[-2:] != "``") \
+         and ('##' != token[:2]):
             sentence += ' '
+        elif '##' == token[:2]:
+            token = token[2:]
+
         sentence += token
 
     return sentence
