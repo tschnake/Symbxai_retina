@@ -8,7 +8,7 @@ def gamma(
         modify_bias: bool = True
 ) -> Tensor:
 
-    def modify_parameters(parameters: Tensor, name: str):
+    def modify_parameters(parameters: Tensor, name: str = 'bias'):
         if name == 'bias':
             if not modify_bias:
                 return zeros_like(parameters)
