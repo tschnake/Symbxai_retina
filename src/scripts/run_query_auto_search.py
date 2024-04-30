@@ -66,7 +66,7 @@ class PythonLiteralOption(click.Option):
                 default='sst_treebank',
                 help='What dataset to load')
 @click.option('--weight_mode',
-              cls=PythonLiteralOption,
+              cls=str,
               default="'occlusion'",
               help='A list of identifiers that describe how to weight the attributions')
 @click.option('--harsanyi_maxorder',
