@@ -181,7 +181,7 @@ def main(sample_range,
             ## Compute or load the Harsanyi dividends
             #########################################
             if load_harsanyi:
-                hars_div = pickle.load(open(resultfolder + file_name_harsanyi_divs, 'rb'))
+                hars_div = pickle.load(open(file_name_harsanyi_divs, 'rb'))
                 print('loaded Harsanyi dividends from file', file=outfile)
             else:
                 start = time.time()
