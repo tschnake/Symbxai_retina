@@ -1,6 +1,6 @@
 numpy
-torch
 torchvision
+torch>=1.9.0,<=2.2.1
 click
 transformers
 onnx
@@ -12,3 +12,5 @@ nltk
 pandas
 pydantic
 # -U git+https://github.com/luca-medeiros/lang-segment-anything.git
+html2image
+ipython
