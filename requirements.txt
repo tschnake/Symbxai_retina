@@ -1,7 +1,9 @@
 numpy
 torch
+torchvision
 click
 transformers
+onnx
 tqdm
 datasets
 networkx
@@ -9,3 +11,4 @@ dgl
 nltk
 pandas
 pydantic
+# -U git+https://github.com/luca-medeiros/lang-segment-anything.git
