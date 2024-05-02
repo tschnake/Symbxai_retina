@@ -185,7 +185,7 @@ def main(sample_range,
                 print('loaded Harsanyi dividends from file', file=outfile)
             else:
                 start = time.time()
-                hars_div = comp_all_harsanyi_sst(explainer, harsanyi_maxorder=harsanyi_maxorder, neg_tokens=neg_tokens_ids)
+                hars_div = comp_all_harsanyi_sst(explainer, harsanyi_maxorder=harsanyi_maxorder) #, neg_tokens=neg_tokens_ids)
                 pickle.dump(hars_div, open(file_name_harsanyi_divs, 'wb'))
                 print(f'computing the harsanyi dividends took {time.time() - start} seconds', file=outfile)
 
