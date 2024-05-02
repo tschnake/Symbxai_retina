@@ -9,3 +9,5 @@ dgl
 nltk
 pandas
 pydantic
+html2image
+ipython
