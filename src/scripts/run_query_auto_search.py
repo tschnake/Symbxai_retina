@@ -108,7 +108,7 @@ def main(sample_range,
     ##########################
     ## Fix input variables
     ###########################
-    neg_tokens = ['[CLS]', '[SEP]', ',', '.', '_', '-' ]
+    neg_tokens = ['[CLS]', '[SEP]', ',', '.', '_', '-', "'" ]
 
     ##########################
     ## Setup model and dataset
