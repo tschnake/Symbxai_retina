@@ -92,6 +92,9 @@ class PythonLiteralOption(click.Option):
 @click.option('--load_harsanyi',
                 is_flag=True,
                 help='Flag to denote if we load the harsanyi dividends from data.')
+@click.option('--neg_tokens_hars_bool',
+                is_flag=True,
+                help='Flag to denote if we neglect the unwanted tokens in the harsanyi dividends as well.')
 def main(sample_range,
         max_and_order,
         logfolder,
@@ -103,13 +106,14 @@ def main(sample_range,
         max_setsize,
         nb_cores,
         attribution_mode,
-        load_harsanyi):
+        load_harsanyi,
+        neg_tokens_hars_bool):
 
     ##########################
     ## Fix input variables
     ###########################
     neg_tokens = ['[CLS]', '[SEP]', ',', '.', '_', '-', "'" ]
-
+    # neg_tokens_hars_bool= True
     ##########################
     ## Setup model and dataset
     ###########################
@@ -185,7 +189,7 @@ def main(sample_range,
                 print('loaded Harsanyi dividends from file', file=outfile)
             else:
                 start = time.time()
-                hars_div = comp_all_harsanyi_sst(explainer, harsanyi_maxorder=harsanyi_maxorder) #, neg_tokens=neg_tokens_ids)
+                hars_div = comp_all_harsanyi_sst(explainer, harsanyi_maxorder=harsanyi_maxorder, neg_tokens=None if not neg_tokens_hars_bool else neg_tokens_ids)
                 pickle.dump(hars_div, open(file_name_harsanyi_divs, 'wb'))
                 print(f'computing the harsanyi dividends took {time.time() - start} seconds', file=outfile)
 

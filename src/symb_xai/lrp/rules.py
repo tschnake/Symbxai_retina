@@ -8,8 +8,9 @@ def gamma(
         modify_bias: bool = True
 ) -> Tensor:
 
-    def modify_parameters(parameters: Tensor, name: str = 'bias'):
+    def modify_parameters(parameters: Tensor, name: str = 'something'):
         if name == 'bias':
+            raise NotImplementedError("this code produced relevance scores in the range of  10**20, I think we shouldn't use it")
             if not modify_bias:
                 return zeros_like(parameters)
             else:
