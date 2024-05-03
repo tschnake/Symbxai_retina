@@ -53,7 +53,7 @@ def getRGB(c_tuple):
 
 def backcolor_text(txt, score, colormap=None):
     if colormap is None : colormap = plt.get_cmap('bwr')
-    return "<span style=\"background-color:" + getRGB(colormap(score)) + "\">" + txt + "</span>"
+    return "<span style=\"font-family:Courier; font-weight:bold; background-color:" + getRGB(colormap(score)) + "\">" + txt + "</span>"
 
 
 def html_heatmap(words, scores, cmap_name="bwr"):
@@ -95,6 +95,29 @@ def make_text_string(lsent):
         sentence += token
 
     return sentence
+
+def vis_barh_query(atts, filename=False):
+    red_color = (1,0.6,0.6)
+    blue_color = (.6,.6,1)
+    for ids in atts.keys():
+        fig, ax = plt.subplots(figsize=(4,len(atts[ids])))
+        for key, val in list(atts[ids].items())[::-1]:
+            ax.barh(key,
+                    width =val,
+                    color=red_color if val>0 else blue_color
+                    , edgecolor='black', linewidth=1.2)
+
+        ax.vlines(x=0, ymin=-.6, ymax= len(atts[ids]) -.4, color='black', ls='--')
+
+        for side in ['top','right','bottom','left']:
+                ax.spines[side].set_visible(False)
+
+        plt.xlim([-1,1])
+#         plt.xticks([-1,0,1], ['-100\%', '0', '100\%'])
+        plt.xticks([])
+        if filename:
+            plt.savefig(filename + f'ids{ids}.svg', transparent=True, dpi=300, bbox_inches = "tight")
+        plt.show()
 
 
 def vis_tree_heat(tree, node_heat, vocab_words, node_labels=None, save_dir=None, word_dist=50, node_size=2000):
