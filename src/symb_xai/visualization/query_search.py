@@ -50,7 +50,7 @@ def setids2logicalANDquery(setids, tokens, mode=None):
 
     return reduce(lambda x,y: x+" &wedge; "+y , textlist)
 
-def plot_quali_table(sentence, tokens, all_queries, vismode, nb_top=5, nb_flop=5, pc_top=10, file_str=None):
+def plot_quali_table(sentence, tokens, all_queries, vismode, nb_top=5, nb_flop=5, pc_top=10, file_str=None, fontcolor='black'):
     # process the queries into a suitable data format
     all_attributions = {mode:{ q.hash: q.attribution for q in queries} for mode,queries in all_queries.items()}
     all_str_rep = {mode:{ q.hash: q.str_rep for q in queries} for mode,queries in all_queries.items()}
@@ -103,7 +103,7 @@ def plot_quali_table(sentence, tokens, all_queries, vismode, nb_top=5, nb_flop=5
                 font_weight = 'bold'
                 color = getRGB(colormap(out_color_vals[mode][key]))
 
-            html_str += f'<td style="font-family:Courier; text-align: center; opacity: {opacity}; font-weight: {font_weight};" bgcolor="{color}">{all_str_rep[mode][key]}</td>'
+            html_str += f'<td style="font-family:Courier; color: {fontcolor};text-align: center; opacity: {opacity}; font-weight: {font_weight};" bgcolor="{color}">{all_str_rep[mode][key]}</td>'
         html_str += '</tr>'
 
     html_str +='</table>'

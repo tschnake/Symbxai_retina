@@ -5,8 +5,9 @@ import dgl
 import networkx as nx
 
 
-def load_sst_treebank(sample_range, mode='train'):
+def load_sst_treebank(sample_range, mode='train', verbose=True):
     # from dgl.data import SSTDataset
+    sample_range = list(sample_range)
     dataset = SSTDataset(mode=mode)
     vocab_words = list(dataset.vocab.keys())
     sst_dataset = {'validation': {
@@ -21,7 +22,7 @@ def load_sst_treebank(sample_range, mode='train'):
         lsent =  [vocab_words[idw] for idw in input_ids[mask == 1]]
 
         if int(tree.ndata['y'][0].item()) == 2:
-            print(f'we skip sample {sid}')
+            if verbose: print(f'we skip sample {sid}')
             sample_range.remove(sid)
             continue
         target = int(tree.ndata['y'][0]>2)

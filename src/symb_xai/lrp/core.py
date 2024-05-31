@@ -76,30 +76,30 @@ class ModifiedLinear(Module):
     ) -> torch.Tensor:
 
         z = self.fc(x)
-
-        inputs = [
-            x.clamp(min=0),  # Pos
-            x.clamp(max=0),  # Neg
-            x.clamp(min=0),  # Pos
-            x.clamp(max=0)   # Neg
-        ]
-
-        outputs = [
-            self.modifiers[0](inputs[0]),
-            self.modifiers[1](inputs[1]),
-            self.modifiers[2](inputs[2]),
-            self.modifiers[3](inputs[3])
-        ]
-
-        zp_pos = outputs[0] + outputs[1]
-        zp_neg = outputs[2] + outputs[3]
-
-        zp_pos *= (z > 1e-6).float()
-        zp_neg *= (z < 1e-6).float()
-
-        zp = zp_pos + zp_neg
-        return (zp.float() * torch.nan_to_num(z.float() / zp.float()).data.float()).float()
-
+        #
+        # inputs = [
+        #     x.clamp(min=0),  # Pos
+        #     x.clamp(max=0),  # Neg
+        #     x.clamp(min=0),  # Pos
+        #     x.clamp(max=0)   # Neg
+        # ]
+        #
+        # outputs = [
+        #     self.modifiers[0](inputs[0]),
+        #     self.modifiers[1](inputs[1]),
+        #     self.modifiers[2](inputs[2]),
+        #     self.modifiers[3](inputs[3])
+        # ]
+        #
+        # zp_pos = outputs[0] + outputs[1]
+        # zp_neg = outputs[2] + outputs[3]
+        #
+        # zp_pos *= (z > 1e-6).float()
+        # zp_neg *= (z < 1e-6).float()
+        #
+        # zp = zp_pos + zp_neg
+        # return (zp.float() * torch.nan_to_num(z.float() / zp.float()).data.float()).float()
+        return z
 
 class ModifiedLayerNorm(Module):
     def __init__(
