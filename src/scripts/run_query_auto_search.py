@@ -21,27 +21,7 @@ from symb_xai.visualization.utils import html_heatmap, make_text_string
 from symb_xai.utils import powerset
 # from symb_xai.lrp.symbolic_xai import attribute
 
-# Preliminary functions
-class PythonLiteralOption(click.Option):
-    def type_cast_value(self, ctx, value):
-        # Either we denote a range, or a list with precise samples:
-        # 1) Range:
-        if 'range' in value:
-            idx_open = value.find('(')
-            idx_close = value.find(')')
-            # Get the range input
-            range_input = value[idx_open + 1:idx_close].split(',')
-            # Make it to numbers:
-            range_input = [int(num) for num in range_input]
-            try :
-                return list(range(*range_input))
-            except:
-                raise click.BadParameter(value)
-        else:
-            try:
-                return ast.literal_eval(value)
-            except:
-                raise click.BadParameter(value)
+from    utils import PythonLiteralOption
 
 # Get arguments
 @click.command()
@@ -227,15 +207,6 @@ def main(sample_range,
             with open(file_name_all_queries, 'wb') as queryfile:
                 pickle.dump(all_queries, queryfile)
 
-# ddddddddd
-#             all_queries = setup_queries(explainer.node_domain,
-#                                 max_and_order,
-#                                 max_setsize=max_setsize,
-#                                 max_indexdist=1,
-#                                 mode=query_mode,
-#                                 neg_tokens=[0,len(explainer.node_domain) -1 ])
-#
-#             all_weighted_outs = weight_query_attr_harsanyi(all_queries,hars_div, weight_modes)
 
 
 
