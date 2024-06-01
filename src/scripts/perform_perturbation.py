@@ -86,7 +86,7 @@ def main(sample_range,
 
     target_mask=torch.tensor([-1,1])
 
-    attribution_methods = ['SymbXAI', 'LRP', 'PredDiff','random',  ]
+    attribution_methods = ['SymbXAI', 'LRP', 'PredDiff','random' ]
     # auc_task =  'minimize' # 'maximize' #
     # perturbation_type =    'removal' #  'generation' #
     optimize_parameter = [('minimize', 'removal'), ('maximize', 'removal') , ('minimize', 'generation'), ('maximize', 'generation')]
@@ -104,7 +104,7 @@ def main(sample_range,
 
                 sample = tokenizer(sentence, return_tensors="pt")
                 tokens = tokenizer.convert_ids_to_tokens(sample['input_ids'].squeeze())
-                if len(tokens) > 256: break
+                if len(tokens) > 256: continue 
                 target_class = model(**sample)['logits'].argmax().item()
                 # output_mask = torch.tensor([0,0]); output_mask[target_class]=1
                 output_mask = torch.tensor([-1,1])
