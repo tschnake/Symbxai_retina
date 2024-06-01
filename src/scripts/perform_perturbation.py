@@ -20,12 +20,14 @@ def save_to_file(output_sequence,
                 default_dict):
     with open(filename, 'ab+') as f:
         fcntl.flock(f, fcntl.LOCK_EX)
+        f.seek(0, 0)
         try:
             existing_data = pickle.load(f)
         except EOFError:
             print('We create a new dict')
             existing_data = default_dict
         existing_data[param][attribution_method][sample_id] = output_sequence
+        f.seek(0)
         pickle.dump(existing_data, f)
         fcntl.flock(f, fcntl.LOCK_UN)
         print('successfully saved', param, attribution_method)
