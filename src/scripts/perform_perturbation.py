@@ -96,15 +96,15 @@ def main(sample_range,
     # auc_task =  'minimize' # 'maximize' #
     # perturbation_type =    'removal' #  'generation' #
     optimize_parameter = [('minimize', 'removal'), ('maximize', 'removal') , ('minimize', 'generation'), ('maximize', 'generation')]
-    filename = f'perturbation_results_{data_mode}.pkl'
 
-    default_dict = { (param[0], param[1],attribution_method): {} for param, attribution_method in zip(optimize_parameter,attribution_methods) }
     print('doing', data_mode, sample_range)
-    went_through = 0
-    for attribution_method in attribution_methods:
-        for auc_task, perturbation_type in optimize_parameter:
-            for sample_id in dataset['sentence'].keys():
 
+    for sample_id in dataset['sentence'].keys():
+        went_through = 0
+        output_dict = {param: {attribution_method: {} for attribution_method in attribution_methods} for parm in optimize_parameter }
+
+        for attribution_method in attribution_methods:
+            for auc_task, perturbation_type in optimize_parameter:
                 ## Preprocess input
                 sentence, label = dataset['sentence'][sample_id], dataset['label'][sample_id]
 
@@ -147,20 +147,25 @@ def main(sample_range,
                     # save alternative output
                     output_sequence.append((model(**new_sample)['logits']*output_mask).sum().item())
 
+                output_dict[(auc_task, perturbation_type)][attribution_method][sample_id] = output_sequence
+
                 # save the results in files
-                save_to_file(output_sequence,
-                            (auc_task, perturbation_type),
-                            attribution_method,
-                            sample_id,
-                            result_dir + filename,
-                            default_dict)
+                # save_to_file(output_sequence,
+                #             (auc_task, perturbation_type),
+                #             attribution_method,
+                #             sample_id,
+                #             result_dir + filename,
+                #             default_dict)
 
                 went_through +=1
-                # all_output_sequences[(auc_task, perturbation_type)][attribution_method].append(output_sequence)
-    if went_through > 0:
-        print('ok', went_through, 'times for', sample_id)
-    else:
-        print('skipped', sample_range)
+        filename = f'perturbation_results_{data_mode}_{sample_id}.pkl'
+        with open(filename,'wb') as f:
+            pickle.dump(output_dict, f)
+
+        if went_through > 0:
+            print('ok', went_through, 'times for', sample_id)
+        else:
+            print('skipped', sample_id)
 
 if __name__ == '__main__':
     main()
