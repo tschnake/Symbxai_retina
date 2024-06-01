@@ -101,7 +101,7 @@ def main(sample_range,
 
     for sample_id in dataset['sentence'].keys():
         went_through = 0
-        output_dict = {param: {attribution_method: {} for attribution_method in attribution_methods} for parm in optimize_parameter }
+        output_dict = {param: {attribution_method: {} for attribution_method in attribution_methods} for param in optimize_parameter }
 
         for attribution_method in attribution_methods:
             for auc_task, perturbation_type in optimize_parameter:
