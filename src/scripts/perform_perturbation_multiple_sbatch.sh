@@ -14,7 +14,13 @@ else
   range=$(seq 0 100)
 fi
 
-for ids in $range; do
-  sbatch --mem=15G perform_perturbation_apptainer_wrapper.sh --sample_range "[${ids}]" --result_dir "${resultfolder}" --data_mode "${data_mode}"
-
+# Define the two lists
+list1=("minimize" "maximize")
+list2=("removal" "generation")
+for auc_task in "${list1[@]}"; do
+    for perturbation_type in "${list2[@]}"; do
+        for ids in $range; do
+          sbatch --mem=15G perform_perturbation_apptainer_wrapper.sh --sample_range "[${ids}]" --result_dir "${resultfolder}" --data_mode "${data_mode}" --auc_task "$auc_task" --perturbation_type "$perturbation_type"
+        done
+    done
 done
