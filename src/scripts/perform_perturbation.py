@@ -57,14 +57,25 @@ def main(sample_range,
 
     if data_mode == 'sst':
         from symb_xai.dataset.utils import load_sst_treebank
+        # load data
+        dataset = load_sst_treebank(sample_range, verbose=False)['validation']
         # load model
         model = bert_base_uncased_model(
             pretrained_model_name_or_path='textattack/bert-base-uncased-SST-2' )
         model.eval()
-        # pretrained_embeddings = model.bert.embeddings
         tokenizer = transformers.BertTokenizer.from_pretrained("textattack/bert-base-uncased-SST-2")
-        # load data
-        dataset = load_sst_treebank(sample_range, verbose=False)['validation']
+
+    elif data_mode == 'imdb': # Load IMDB data and model
+        from symb_xai.dataset.utils import load_imdb_dataset
+        # Load the dataset
+        dataset = load_imdb_dataset(sample_range)
+
+        # Load the model and tokenizer
+        model = bert_base_uncased_model(
+                pretrained_model_name_or_path='textattack/bert-base-uncased-imdb' )
+        model.eval()
+        tokenizer = transformers.BertTokenizer.from_pretrained("textattack/bert-base-uncased-imdb")
+
     else:
         raise NotImplementedError(f'data mode {data_mode} does not exist')
 
@@ -80,12 +91,7 @@ def main(sample_range,
 
     default_dict = { param: {attribution_method: [] for attribution_method in attribution_methods} for param in optimize_parameter}
 
-    # if create_data_file:
-    #
-    #     with open(result_dir + filename, 'w') as f:
-    #         json.dump(all_output_sequences, f)
-
-
+    went_through = 0
     for attribution_method in attribution_methods:
         for auc_task, perturbation_type in optimize_parameter:
             for sample_id in dataset['sentence'].keys():
@@ -95,6 +101,7 @@ def main(sample_range,
 
                 sample = tokenizer(sentence, return_tensors="pt")
                 tokens = tokenizer.convert_ids_to_tokens(sample['input_ids'].squeeze())
+                if len(tokens) > 256: break
                 target_class = model(**sample)['logits'].argmax().item()
                 # output_mask = torch.tensor([0,0]); output_mask[target_class]=1
                 output_mask = torch.tensor([-1,1])
@@ -138,7 +145,12 @@ def main(sample_range,
                             result_dir + filename,
                             default_dict)
 
+                went_through +=1
                 # all_output_sequences[(auc_task, perturbation_type)][attribution_method].append(output_sequence)
-    print('ok1')
+    if went_through > 0
+        print('ok', went_through, 'times for', sample_id)
+    else:
+        print('skipped', sample_id)
+    
 if __name__ == '__main__':
     main()
