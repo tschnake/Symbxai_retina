@@ -25,14 +25,16 @@ def save_to_file(output_sequence,
     with lock:
         with open(filename, 'ab+') as f:
             # fcntl.flock(f, fcntl.LOCK_EX)
-            # f.seek(0, 0)
+            f.seek(0, 0)
             try:
                 existing_data = pickle.load(f)
             except EOFError:
                 print('We create a new dict')
                 existing_data = default_dict
-            existing_data[param][attribution_method].update( {sample_id: output_sequence} )
-            # f.seek(0)
+
+            existing_data[(param[0], param[1], attribution_method)].update( {sample_id: output_sequence} )
+            f.seek(0)
+            f.truncate()
             pickle.dump(existing_data, f)
             # fcntl.flock(f, fcntl.LOCK_UN)
             print('successfully saved', param, attribution_method)
@@ -96,7 +98,7 @@ def main(sample_range,
     optimize_parameter = [('minimize', 'removal'), ('maximize', 'removal') , ('minimize', 'generation'), ('maximize', 'generation')]
     filename = f'perturbation_results_{data_mode}.pkl'
 
-    default_dict = { param: {attribution_method: {} for attribution_method in attribution_methods} for param in optimize_parameter}
+    default_dict = { (param[0], param[1],attribution_method): {} for param, attribution_method in zip(optimize_parameter,attribution_methods) }
     print('doing', data_mode, sample_range)
     went_through = 0
     for attribution_method in attribution_methods:
