@@ -6,6 +6,7 @@ import transformers
 from symb_xai.perturbation_utils import get_node_ordering
 from symb_xai.visualization.utils import make_text_string
 from utils import PythonLiteralOption
+from tqdm import tqdm
 
 
 import fcntl
@@ -13,31 +14,31 @@ from filelock import FileLock
 
 import pickle
 
-def save_to_file(output_sequence,
-                param,
-                attribution_method,
-                sample_id,
-                filename,
-                default_dict):
-    lock_path = filename + '.lock'
-    # Create a FileLock object
-    lock = FileLock(lock_path, timeout=5)
-    with lock:
-        with open(filename, 'ab+') as f:
-            # fcntl.flock(f, fcntl.LOCK_EX)
-            f.seek(0, 0)
-            try:
-                existing_data = pickle.load(f)
-            except EOFError:
-                print('We create a new dict')
-                existing_data = default_dict
-
-            existing_data[(param[0], param[1], attribution_method)].update( {sample_id: output_sequence} )
-            f.seek(0)
-            f.truncate()
-            pickle.dump(existing_data, f)
-            # fcntl.flock(f, fcntl.LOCK_UN)
-            print('successfully saved', param, attribution_method)
+# def save_to_file(output_sequence,
+#                 param,
+#                 attribution_method,
+#                 sample_id,
+#                 filename,
+#                 default_dict):
+#     lock_path = filename + '.lock'
+#     # Create a FileLock object
+#     lock = FileLock(lock_path, timeout=5)
+#     with lock:
+#         with open(filename, 'ab+') as f:
+#             # fcntl.flock(f, fcntl.LOCK_EX)
+#             f.seek(0, 0)
+#             try:
+#                 existing_data = pickle.load(f)
+#             except EOFError:
+#                 print('We create a new dict')
+#                 existing_data = default_dict
+#
+#             existing_data[(param[0], param[1], attribution_method)].update( {sample_id: output_sequence} )
+#             f.seek(0)
+#             f.truncate()
+#             pickle.dump(existing_data, f)
+#             # fcntl.flock(f, fcntl.LOCK_UN)
+#             print('successfully saved', param, attribution_method)
 
 
 @click.command()
@@ -53,6 +54,14 @@ def save_to_file(output_sequence,
               type=str,
               default='/Users/thomasschnake/Research/Projects/symbolic_xai/local_experiments/intermediate_results/',
               help='The directory in which we save the results.')
+@click.option('--auc_task',
+            type=str,
+            default='',
+            help="it can be 'minimize' or 'maximize'")
+@click.option('--perturbation_type',
+            type=str,
+            default='',
+            help="it can be 'removal' or 'generation'")
 # @click.option('--create_data_file',
 #                 is_flag=True,
 #                 help='A flag that specifies whether the result file should be created from scratch. \
@@ -61,6 +70,8 @@ def save_to_file(output_sequence,
 def main(sample_range,
          data_mode,
          result_dir,
+         auc_task,
+         perturbation_type
          # create_data_file
          ):
 
@@ -81,7 +92,7 @@ def main(sample_range,
 
         # Load the model and tokenizer
         model = bert_base_uncased_model(
-                pretrained_model_name_or_path='textattack/bert-base-uncased-imdb' )
+                pretrained_model_name_or_path='textattack/bert-base-uncased-imdb')
         model.eval()
         tokenizer = transformers.BertTokenizer.from_pretrained("textattack/bert-base-uncased-imdb", local_files_only=True)
 
@@ -92,11 +103,15 @@ def main(sample_range,
 
     target_mask=torch.tensor([-1,1])
 
-    attribution_methods = ['SymbXAI', 'LRP', 'PredDiff','random' ]
+    attribution_methods = [ 'SymbXAI', 'LRP', 'PredDiff','random' ]
     # auc_task =  'minimize' # 'maximize' #
     # perturbation_type =    'removal' #  'generation' #
-    optimize_parameter = [('minimize', 'removal'), ('maximize', 'removal') , ('minimize', 'generation'), ('maximize', 'generation')]
-
+    if auc_task and perturbation_type:
+        optimize_parameter = [(auc_task, perturbation_type)]
+        save_seperatly = True
+    else:
+        optimize_parameter = [('minimize', 'removal'), ('maximize', 'removal') , ('minimize', 'generation'), ('maximize', 'generation')]
+        save_seperatly = False
     print('doing', data_mode, sample_range)
 
     for sample_id in dataset['sentence'].keys():
@@ -110,7 +125,7 @@ def main(sample_range,
 
                 sample = tokenizer(sentence, return_tensors="pt")
                 tokens = tokenizer.convert_ids_to_tokens(sample['input_ids'].squeeze())
-                if len(tokens) > 256: continue 
+                if len(tokens) > 256: continue
                 target_class = model(**sample)['logits'].argmax().item()
                 # output_mask = torch.tensor([0,0]); output_mask[target_class]=1
                 output_mask = torch.tensor([-1,1])
@@ -129,7 +144,7 @@ def main(sample_range,
                 elif perturbation_type == 'generation':
                     output_sequence = [(model(**tokenizer('', return_tensors="pt"))['logits']*output_mask).sum().item()]
 
-                for node_id in node_ordering:
+                for node_id in tqdm(node_ordering):
                     gliding_subset_ids.append(node_id)
                     if perturbation_type == 'removal':
                         input_ids = [ids for ids in range(len(tokens)) if ids not in gliding_subset_ids]
@@ -158,7 +173,12 @@ def main(sample_range,
                 #             default_dict)
 
                 went_through +=1
-        filename = f'perturbation_results_{data_mode}_{sample_id}.pkl'
+
+        if save_seperatly:
+            filename = f'perturbation_results_{data_mode}_{sample_id}_{auc_task}_{perturbation_type}.pkl'
+        else:
+            filename = f'perturbation_results_{data_mode}_{sample_id}.pkl'
+
         with open(result_dir + filename,'wb') as f:
             pickle.dump(output_dict, f)
 
