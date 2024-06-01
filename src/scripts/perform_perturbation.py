@@ -149,7 +149,7 @@ def main(sample_range,
 
                 went_through +=1
                 # all_output_sequences[(auc_task, perturbation_type)][attribution_method].append(output_sequence)
-    if went_through > 0
+    if went_through > 0:
         print('ok', went_through, 'times for', sample_id)
     else:
         print('skipped', sample_id)
