@@ -1,17 +1,17 @@
-#!/bin/bash
+#/bin/bash
 
 logfolder="/home/thomas_schnake/ResearchProjects/symbXAI_project/local_experiments/logs/"
 resultfolder="/home/thomas_schnake/ResearchProjects/symbXAI_project/local_experiments/intermediate_results/"
 
 # Define the variable dry_run
-dry_run="false"
+dry_run="true"
 
-data_mode="sst"
+data_mode="imdb"
 # Check if dry_run is true
 if [ "$dry_run" = "true" ]; then
   range='0 1'
 else
-  range=$(seq 0 200)
+  range=$(seq 0 100)
 fi
 
 for ids in $range; do
