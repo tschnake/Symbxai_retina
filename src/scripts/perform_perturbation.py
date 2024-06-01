@@ -22,7 +22,6 @@ def save_to_file(output_sequence,
     lock_path = filename + '.lock'
     # Create a FileLock object
     lock = FileLock(lock_path, timeout=5)
-
     with lock:
         with open(filename, 'ab+') as f:
             # fcntl.flock(f, fcntl.LOCK_EX)
@@ -32,7 +31,7 @@ def save_to_file(output_sequence,
             except EOFError:
                 print('We create a new dict')
                 existing_data = default_dict
-            existing_data[param][attribution_method][sample_id] = output_sequence
+            existing_data[param][attribution_method].update( {sample_id: output_sequence} )
             # f.seek(0)
             pickle.dump(existing_data, f)
             # fcntl.flock(f, fcntl.LOCK_UN)
