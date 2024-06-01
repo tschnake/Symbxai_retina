@@ -20,15 +20,12 @@ def save_to_file(output_sequence,
                 default_dict):
     with open(filename, 'ab+') as f:
         fcntl.flock(f, fcntl.LOCK_EX)
-        f.seek(0, 0)
         try:
             existing_data = pickle.load(f)
         except EOFError:
             print('We create a new dict')
             existing_data = default_dict
         existing_data[param][attribution_method][sample_id] = output_sequence
-        f.seek(0)
-        f.truncate()
         pickle.dump(existing_data, f)
         fcntl.flock(f, fcntl.LOCK_UN)
         print('successfully saved', param, attribution_method)
@@ -86,7 +83,7 @@ def main(sample_range,
 
     target_mask=torch.tensor([-1,1])
 
-    attribution_methods = ['SymbXAI', 'LRP', 'PredDiff','random',  ]
+    attribution_methods = ['SymbXAI', 'LRP', 'PredDiff','random' ]
     # auc_task =  'minimize' # 'maximize' #
     # perturbation_type =    'removal' #  'generation' #
     optimize_parameter = [('minimize', 'removal'), ('maximize', 'removal') , ('minimize', 'generation'), ('maximize', 'generation')]
