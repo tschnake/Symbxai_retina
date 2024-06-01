@@ -15,7 +15,7 @@ fi
 
 
 
-for ids in $treebank_ids; do
+for ids in $range; do
   sbatch --mem=15G perform_perturbation_apptainer_wrapper.sh --sample_range "[${ids}]" --result_dir "${resultfolder}"
 
 done
