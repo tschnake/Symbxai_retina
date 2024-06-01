@@ -10,7 +10,7 @@ dry_run="false"
 if [ "$dry_run" = "true" ]; then
   range='0 1'
 else
-  range='(seq 0 100)'
+  range=$(seq 0 100)
 fi
 
 
