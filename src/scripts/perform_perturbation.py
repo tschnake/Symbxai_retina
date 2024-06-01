@@ -92,7 +92,7 @@ def main(sample_range,
     filename = f'perturbation_results_{data_mode}.pkl'
 
     default_dict = { param: {attribution_method: [] for attribution_method in attribution_methods} for param in optimize_parameter}
-
+    print('doing', data_mode, sample_range)
     went_through = 0
     for attribution_method in attribution_methods:
         for auc_task, perturbation_type in optimize_parameter:
