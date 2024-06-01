@@ -1,7 +1,9 @@
 from copy import copy
 from symb_xai.visualization.utils import  make_text_string
 from dgl.data import SSTDataset
+import datasets
 import dgl
+import random
 import networkx as nx
 
 
@@ -32,6 +34,18 @@ def load_sst_treebank(sample_range, mode='train', verbose=True):
         sst_dataset['validation']['label'][sid]    = target
     return sst_dataset
 
+def load_imdb_dataset(sample_range):
+    dataset = datasets.load_dataset("imdb")['test']
+    # Process the dataset
+    # We should suffle the datapoints
+    sentences, labels = dataset['text'],dataset['label']
+    combined = list(zip(sentences,labels))
+    random.seed(1)
+    random.shuffle(combined)
+    sentences, labels = zip(*combined)
+    dataset = {'sentence': {idx: sentences[idx] for idx in sample_range} , 'label': {idx: labels[idx] for idx in sample_range} }
+
+    return dataset
 def test_contr_conj(tree, vocab_words, verbose=False):
     input_ids = tree.ndata['x'] # word id of the node
     labels = tree.ndata['y'] #  label of the node
