@@ -23,12 +23,14 @@ def save_to_file(output_sequence,
         try:
             existing_data = pickle.load(f)
         except EOFError:
+            print('We create a new dict')
             existing_data = default_dict
         existing_data[param][attribution_method].append(output_sequence)
         f.seek(0)
         f.truncate()
         pickle.dump(existing_data, f)
         fcntl.flock(f, fcntl.LOCK_UN)
+        print('successfully saved', param, attribution_method)
 
 
 @click.command()
@@ -151,6 +153,6 @@ def main(sample_range,
         print('ok', went_through, 'times for', sample_id)
     else:
         print('skipped', sample_id)
-    
+
 if __name__ == '__main__':
     main()
