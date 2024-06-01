@@ -81,7 +81,7 @@ def main(sample_range,
 
         # Load the model and tokenizer
         model = bert_base_uncased_model(
-                pretrained_model_name_or_path='textattack/bert-base-uncased-imdb' )
+                pretrained_model_name_or_path="textattack/bert-base-uncased-imdb" )
         model.eval()
         tokenizer = transformers.BertTokenizer.from_pretrained("textattack/bert-base-uncased-imdb", local_files_only=True)
 
