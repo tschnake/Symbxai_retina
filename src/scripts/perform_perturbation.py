@@ -159,7 +159,7 @@ def main(sample_range,
 
                 went_through +=1
         filename = f'perturbation_results_{data_mode}_{sample_id}.pkl'
-        with open(filename,'wb') as f:
+        with open(result_dir + filename,'wb') as f:
             pickle.dump(output_dict, f)
 
         if went_through > 0:
