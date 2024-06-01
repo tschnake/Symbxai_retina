@@ -83,7 +83,7 @@ def main(sample_range,
         model = bert_base_uncased_model(
                 pretrained_model_name_or_path='textattack/bert-base-uncased-imdb' )
         model.eval()
-        tokenizer = transformers.BertTokenizer.from_pretrained("textattack/bert-base-uncased-imdb")
+        tokenizer = transformers.BertTokenizer.from_pretrained("textattack/bert-base-uncased-imdb", local_files_only=True)
 
     else:
         raise NotImplementedError(f'data mode {data_mode} does not exist')
