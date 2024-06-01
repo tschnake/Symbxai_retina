@@ -5,6 +5,7 @@ resultfolder="/home/thomas_schnake/ResearchProjects/symbXAI_project/local_experi
 
 # Define the variable dry_run
 dry_run="false"
+data_mode="imdb"
 
 # Check if dry_run is true
 if [ "$dry_run" = "true" ]; then
@@ -14,6 +15,6 @@ else
 fi
 
 for ids in $range; do
-  sbatch --mem=15G perform_perturbation_apptainer_wrapper.sh --sample_range "[${ids}]" --result_dir "${resultfolder}"
+  sbatch --mem=15G perform_perturbation_apptainer_wrapper.sh --sample_range "[${ids}]" --result_dir "${resultfolder}" --data_mode "${data_mode}"
 
 done
