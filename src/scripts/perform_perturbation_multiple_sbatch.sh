@@ -5,13 +5,13 @@ resultfolder="/home/thomas_schnake/ResearchProjects/symbXAI_project/local_experi
 
 # Define the variable dry_run
 dry_run="false"
-data_mode="imdb"
 
+data_mode="sst"
 # Check if dry_run is true
 if [ "$dry_run" = "true" ]; then
   range='0 1'
 else
-  range=$(seq 0 100)
+  range=$(seq 0 200)
 fi
 
 for ids in $range; do
