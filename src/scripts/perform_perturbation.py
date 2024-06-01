@@ -15,6 +15,7 @@ import pickle
 def save_to_file(output_sequence,
                 param,
                 attribution_method,
+                sample_id,
                 filename,
                 default_dict):
     with open(filename, 'ab+') as f:
@@ -25,7 +26,7 @@ def save_to_file(output_sequence,
         except EOFError:
             print('We create a new dict')
             existing_data = default_dict
-        existing_data[param][attribution_method].append(output_sequence)
+        existing_data[param][attribution_method][sample_id] = output_sequence
         f.seek(0)
         f.truncate()
         pickle.dump(existing_data, f)
@@ -91,7 +92,7 @@ def main(sample_range,
     optimize_parameter = [('minimize', 'removal'), ('maximize', 'removal') , ('minimize', 'generation'), ('maximize', 'generation')]
     filename = f'perturbation_results_{data_mode}.pkl'
 
-    default_dict = { param: {attribution_method: [] for attribution_method in attribution_methods} for param in optimize_parameter}
+    default_dict = { param: {attribution_method: {} for attribution_method in attribution_methods} for param in optimize_parameter}
     print('doing', data_mode, sample_range)
     went_through = 0
     for attribution_method in attribution_methods:
@@ -144,6 +145,7 @@ def main(sample_range,
                 save_to_file(output_sequence,
                             (auc_task, perturbation_type),
                             attribution_method,
+                            sample_id,
                             result_dir + filename,
                             default_dict)
 
@@ -152,7 +154,7 @@ def main(sample_range,
     if went_through > 0:
         print('ok', went_through, 'times for', sample_id)
     else:
-        print('skipped', sample_id)
+        print('skipped', sample_range)
 
 if __name__ == '__main__':
     main()
