@@ -277,6 +277,18 @@ def calc_corr(arg):
 
     return q
 
+def calc_cov(arg):
+    ''' helping function for the parallelization'''
+    q, hars_div, weight_vec = arg
+    supp = tuple([S for S in hars_div.keys() if q(S)])
+
+    q_vec, val_vec = map(numpy.array, zip(*[(int(q(S)), val) for S, val in hars_div.items() ]))
+
+    q.attribution = cov(q_vec, val_vec, weight_vec)
+    q.set_support(supp)
+
+    return q
+
 def calc_attr_supp(arg):
     ''' helping function for the parallelization'''
     q, hars_div, weight_vec = arg
