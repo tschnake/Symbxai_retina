@@ -4,19 +4,26 @@ logfolder="/home/thomas_schnake/ResearchProjects/symbXAI_project/local_experimen
 resultfolder="/home/thomas_schnake/ResearchProjects/symbXAI_project/local_experiments/intermediate_results/"
 
 # Define the variable dry_run
-dry_run="true"
+dry_run="false"
 
-data_mode="imdb"
+data_mode="sst"
+
 # Check if dry_run is true
 if [ "$dry_run" = "true" ]; then
-  range='0 1'
+  range='0'
 else
-  range=$(seq 0 100)
+  range=$(seq 100 200)
 fi
 
 # Define the two lists
-list1=("minimize" "maximize")
-list2=("removal" "generation")
+if [ "$data_mode" = "sst" ]; then
+	list1=("")
+	list2=("")
+else
+	list1=("minimize" "maximize")
+	list2=("removal" "generation")
+fi
+
 for auc_task in "${list1[@]}"; do
     for perturbation_type in "${list2[@]}"; do
         for ids in $range; do
