@@ -10,7 +10,7 @@ from symb_xai.dataset.utils import load_sst_treebank
 from symb_xai.lrp.symbolic_xai import BERTSymbXAI
 from symb_xai.model.transformer import bert_base_uncased_model
 # from symb_xai.model.utils import load_pretrained_weights
-from symb_xai.query_search.utils import comp_all_harsanyi_sst, setup_queries,  calc_attr_supp, calc_corr, calc_weights
+from symb_xai.query_search.utils import comp_all_harsanyi_sst, setup_queries,  calc_attr_supp, calc_corr, calc_weights, calc_cov
 
 from transformers import BertTokenizer
 # from dgl.data import SSTDataset
@@ -21,7 +21,7 @@ from symb_xai.visualization.utils import html_heatmap, make_text_string
 from symb_xai.utils import powerset
 # from symb_xai.lrp.symbolic_xai import attribute
 
-from    utils import PythonLiteralOption
+from utils import PythonLiteralOption
 
 # Get arguments
 @click.command()
@@ -191,6 +191,8 @@ def main(sample_range,
             start = time.time()
             if attribution_mode == 'corr(q,f)':
                 calculation_fct = calc_corr
+            if attribution_mode == 'cov(q,f)':
+                calculation_fct = calc_cov
             else:
                  calculation_fct = calc_attr_supp
 
@@ -206,9 +208,6 @@ def main(sample_range,
             print('Attribution of the queries with' if nb_cores>1 else 'without', f'parallization it took {time.time() - start} seconds.', file=outfile)
             with open(file_name_all_queries, 'wb') as queryfile:
                 pickle.dump(all_queries, queryfile)
-
-
-
 
 
 if __name__ == '__main__':

@@ -4,7 +4,8 @@ logfolder="/home/thomas_schnake/ResearchProjects/symbXAI_project/local_experimen
 resultfolder="/home/thomas_schnake/ResearchProjects/symbXAI_project/local_experiments/intermediate_results/"
 
 # Define the variable dry_run
-dry_run="false"
+dry_run="true"
+attribution_mode="cov(f,g)"
 
 # Check if dry_run is true
 if [ "$dry_run" = "true" ]; then
@@ -24,7 +25,7 @@ fi
 
 datamode='sst_treebank'
 for ids in $treebank_ids; do
-  sbatch --mem=150G run_query_auto_search_apptainer_wrapper.sh --sample_range "[${ids}]" --max_and_order ${max_and_order} --datamode "${datamode}" --harsanyi_maxorder ${harsanyi_maxorder} --weight_mode "occlusion" --max_setsize ${max_setsize} --logfolder "${logfolder}" --resultfolder "${resultfolder}" --nb_cores 1 &
+  sbatch --mem=150G run_query_auto_search_apptainer_wrapper.sh --sample_range "[${ids}]" --max_and_order ${max_and_order} --datamode "${datamode}" --harsanyi_maxorder ${harsanyi_maxorder} --weight_mode "occlusion" --max_setsize ${max_setsize} --logfolder "${logfolder}" --resultfolder "${resultfolder}" --nb_cores 1 --attribution_mode "${attribution_mode}" & 
 done
 
 datamode='sst_huggingface'
