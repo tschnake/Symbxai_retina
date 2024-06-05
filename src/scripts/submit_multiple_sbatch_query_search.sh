@@ -4,7 +4,7 @@ logfolder="/home/thomas_schnake/ResearchProjects/symbXAI_project/local_experimen
 resultfolder="/home/thomas_schnake/ResearchProjects/symbXAI_project/local_experiments/intermediate_results/"
 
 # Define the variable dry_run
-dry_run="true"
+dry_run="false"
 attribution_mode="cov(f,g)"
 
 # Check if dry_run is true
