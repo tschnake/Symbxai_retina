@@ -191,10 +191,12 @@ def main(sample_range,
             start = time.time()
             if attribution_mode == 'corr(q,f)':
                 calculation_fct = calc_corr
-            if attribution_mode == 'cov(q,f)':
+            elif attribution_mode == 'cov(q,f)':
                 calculation_fct = calc_cov
-            else:
+            elif attribution_mode =='supp(q)':
                  calculation_fct = calc_attr_supp
+            else:
+                raise NotImplementedError
 
             if nb_cores >1:
                 pool = multiprocessing.Pool(nb_cores)
