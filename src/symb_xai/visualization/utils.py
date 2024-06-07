@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import networkx as nx
-import copy
+import copy, torch
 import dgl
 from networkx.drawing.nx_pydot import graphviz_layout
 
@@ -95,6 +95,14 @@ def make_text_string(lsent):
         sentence += token
 
     return sentence
+
+def remove_patches(sample, patch_ids):
+    new_sample = torch.zeros(sample.shape)+.5
+    for i in range(14):
+        for j in range(14):
+            if (i*14 + j) not in patch_ids:
+                new_sample[:,i*16:(i+1)*16,j*16:(j+1)*16] = sample[:,i*16:(i+1)*16,j*16:(j+1)*16]
+    return new_sample
 
 def vis_barh_query(atts, filename=False):
     red_color = (1,0.6,0.6)
