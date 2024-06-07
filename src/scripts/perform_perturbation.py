@@ -1,10 +1,13 @@
-import click, torch
+import click, torch, torchvision, transformers
+
 from symb_xai.lrp.symbolic_xai import BERTSymbXAI
+from symb_xai.lrp.symbolic_xai import ViTSymbolicXAI
+
 from symb_xai.model.transformer import bert_base_uncased_model
-import transformers
+
 
 from symb_xai.perturbation_utils import get_node_ordering
-from symb_xai.visualization.utils import make_text_string
+from symb_xai.visualization.utils import make_text_string, remove_patches
 from utils import PythonLiteralOption
 from tqdm import tqdm
 
@@ -13,32 +16,6 @@ import fcntl
 from filelock import FileLock
 
 import pickle
-
-# def save_to_file(output_sequence,
-#                 param,
-#                 attribution_method,
-#                 sample_id,
-#                 filename,
-#                 default_dict):
-#     lock_path = filename + '.lock'
-#     # Create a FileLock object
-#     lock = FileLock(lock_path, timeout=5)
-#     with lock:
-#         with open(filename, 'ab+') as f:
-#             # fcntl.flock(f, fcntl.LOCK_EX)
-#             f.seek(0, 0)
-#             try:
-#                 existing_data = pickle.load(f)
-#             except EOFError:
-#                 print('We create a new dict')
-#                 existing_data = default_dict
-#
-#             existing_data[(param[0], param[1], attribution_method)].update( {sample_id: output_sequence} )
-#             f.seek(0)
-#             f.truncate()
-#             pickle.dump(existing_data, f)
-#             # fcntl.flock(f, fcntl.LOCK_UN)
-#             print('successfully saved', param, attribution_method)
 
 
 @click.command()
@@ -62,6 +39,9 @@ import pickle
             type=str,
             default='',
             help="it can be 'removal' or 'generation'")
+@click.option('--data_dir',
+                type=str,
+                default='/Users/thomasschnake/Research/Projects/symbolic_xai/datasets/fer_images/train/')
 # @click.option('--create_data_file',
 #                 is_flag=True,
 #                 help='A flag that specifies whether the result file should be created from scratch. \
@@ -71,7 +51,8 @@ def main(sample_range,
          data_mode,
          result_dir,
          auc_task,
-         perturbation_type
+         perturbation_type,
+         data_dir
          # create_data_file
          ):
 
@@ -84,6 +65,7 @@ def main(sample_range,
             pretrained_model_name_or_path='textattack/bert-base-uncased-SST-2' )
         model.eval()
         tokenizer = transformers.BertTokenizer.from_pretrained("textattack/bert-base-uncased-SST-2")
+        input_type = 'sentence'
 
     elif data_mode == 'imdb': # Load IMDB data and model
         from symb_xai.dataset.utils import load_imdb_dataset
@@ -95,17 +77,25 @@ def main(sample_range,
                 pretrained_model_name_or_path="textattack/bert-base-uncased-imdb" )
         model.eval()
         tokenizer = transformers.BertTokenizer.from_pretrained("textattack/bert-base-uncased-imdb", local_files_only=True)
+        input_type = 'sentence'
+
+    elif data_mode == 'fer':
+        ## Load model
+        processor = transformers.AutoImageProcessor.from_pretrained("dima806/facial_emotions_image_detection")
+        model = transformers.AutoModelForImageClassification.from_pretrained("dima806/facial_emotions_image_detection")
+        model.eval()
+
+        from symb_xai.dataset.utils import load_fer_dataset
+        dataset = load_fer_dataset(sample_range, processor, data_dir)
+
+        input_type = 'image'
 
     else:
         raise NotImplementedError(f'data mode {data_mode} does not exist')
 
-    # perform perturbation
-
-    target_mask=torch.tensor([-1,1])
-
+    # Perform perturbation
     attribution_methods = [ 'SymbXAI', 'LRP', 'PredDiff','random' ]
-    # auc_task =  'minimize' # 'maximize' #
-    # perturbation_type =    'removal' #  'generation' #
+
     if auc_task and perturbation_type:
         optimize_parameter = [(auc_task, perturbation_type)]
         save_seperatly = True
@@ -114,40 +104,60 @@ def main(sample_range,
         save_seperatly = False
     print('doing', data_mode, sample_range)
 
-    for sample_id in dataset['sentence'].keys():
+    for sample_id in dataset[input_type].keys():
         went_through = 0
         output_dict = {param: {attribution_method: {} for attribution_method in attribution_methods} for param in optimize_parameter }
 
         for attribution_method in attribution_methods:
             for auc_task, perturbation_type in optimize_parameter:
                 ## Preprocess input
-                sentence, label = dataset['sentence'][sample_id], dataset['label'][sample_id]
+                if data_mode in ['sst', 'imdb']: ## NLP
+                    sentence, label = dataset[input_type][sample_id], dataset['label'][sample_id]
 
-                sample = tokenizer(sentence, return_tensors="pt")
-                tokens = tokenizer.convert_ids_to_tokens(sample['input_ids'].squeeze())
-                if len(tokens) > 256: continue
-                target_class = model(**sample)['logits'].argmax().item()
-                # output_mask = torch.tensor([0,0]); output_mask[target_class]=1
-                output_mask = torch.tensor([-1,1])
+                    sample = tokenizer(sentence, return_tensors="pt")
+                    tokens = tokenizer.convert_ids_to_tokens(sample['input_ids'].squeeze())
+                    if len(tokens) > 256: continue
+                    # target_class = model(**sample)['logits'].argmax().item()
+                    # output_mask = torch.tensor([0,0]); output_mask[target_class]=1
+                    output_mask = torch.tensor([-1,1])
 
-                ### Generate node ordering
-                explainer = BERTSymbXAI(sample=sample,
-                                    target=target_mask,
-                                    model=model,
-                                    embeddings=model.bert.embeddings)
+                    ### Generate node ordering
+                    explainer = BERTSymbXAI(sample=sample,
+                                        target=output_mask,
+                                        model=model,
+                                        embeddings=model.bert.embeddings)
+
+                    model_output = lambda sample: (model(**sample)['logits']*output_mask).sum().item()
+                    empty_sample = tokenizer('', return_tensors="pt")
+
+                elif data_mode == 'fer': ## Vision
+                    sample, label = dataset[input_type][sample_id], dataset['label'][sample_id]
+                    output_mask = torch.eye(7, dtype=sample.dtype)[label]
+
+                    explainer = ViTSymbolicXAI(
+                                model=model,
+                                embeddings=model.vit.embeddings,
+                                sample=sample.unsqueeze(0),
+                                target=output_mask
+                                        )
+                    model_output = lambda sample: (model(sample.unsqueeze(0)).logits*output_mask).sum().item()
+                    empty_sample = torch.zeros(sample.shape)+.5
+
+                # Compute the node ordering.
+                ## This might take some time...
                 node_ordering = get_node_ordering(explainer, attribution_method, auc_task, perturbation_type, verbose=True)
 
                 ### Create purturbation curve
                 gliding_subset_ids = []
                 if perturbation_type == 'removal':
-                    output_sequence = [(model(**sample)['logits']*output_mask).sum().item()]
+                    output_sequence = [model_output(sample)]
                 elif perturbation_type == 'generation':
-                    output_sequence = [(model(**tokenizer('', return_tensors="pt"))['logits']*output_mask).sum().item()]
+                    output_sequence = [model_output(empty_sample)]
 
                 for node_id in tqdm(node_ordering):
                     gliding_subset_ids.append(node_id)
                     if perturbation_type == 'removal':
-                        input_ids = [ids for ids in range(len(tokens)) if ids not in gliding_subset_ids]
+                        input_ids = [ids for ids in explainer.node_domain if ids not in gliding_subset_ids]
                         input_ids = sorted(input_ids)
 
                     elif perturbation_type == 'generation':
@@ -156,11 +166,17 @@ def main(sample_range,
                     else:
                         raise NotImplementedError(f'perturbation type -{perturbation_type}- does not exist')
                     # make into a model input
-                    new_sentence = make_text_string([ tokens[ids] for ids in input_ids])
-                    new_sample  = tokenizer(new_sentence, return_tensors="pt")
+                    if data_mode in ['sst', 'imdb']:
+                        new_sentence = make_text_string([ tokens[ids] for ids in input_ids])
+                        new_sample  = tokenizer(new_sentence, return_tensors="pt")
+                    elif data_mode == 'fer':
+                        new_sample = remove_patches(sample, [ids for ids in explainer.node_domain if ids not in input_ids])
+                    else:
+                        raise NotImplementedError
+
 
                     # save alternative output
-                    output_sequence.append((model(**new_sample)['logits']*output_mask).sum().item())
+                    output_sequence.append(model_output(new_sample))
 
                 output_dict[(auc_task, perturbation_type)][attribution_method][sample_id] = output_sequence
 

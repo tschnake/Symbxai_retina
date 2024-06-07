@@ -1,9 +1,7 @@
 from copy import copy
 from symb_xai.visualization.utils import  make_text_string
 from dgl.data import SSTDataset
-import datasets
-import dgl
-import random
+import datasets, torchvision, dgl, random
 import networkx as nx
 
 
@@ -46,6 +44,48 @@ def load_imdb_dataset(sample_range):
     dataset = {'sentence': {idx: sentences[idx] for idx in sample_range} , 'label': {idx: labels[idx] for idx in sample_range} }
 
     return dataset
+
+def load_fer_dataset(sample_range, processor, data_dir):
+    from PIL import ImageFile, Image
+    import pandas as pd
+    # Define the list of file names
+    from pathlib import Path
+
+    crop_size = 224
+    size = int((256 / 224) * crop_size)
+    transforms_model = torchvision.transforms.Compose([
+        torchvision.transforms.Resize(size=size, interpolation=3),
+        torchvision.transforms.CenterCrop(crop_size),
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(mean=processor.image_mean, std=processor.image_std)
+    ])
+
+    label_to_id = {'sad': 0, 'disgust': 1, 'angry': 2, 'neutral': 3, 'fear': 4, 'surprise': 5, 'happy': 6}
+    file_names = []
+    labels = []
+
+    # Iterate through all image files in the specified directory
+    all_files = sorted((Path(data_dir).glob('*/*.*')))
+    assert len(all_files)> 0, f'Sorry, there are no files at {data_dir}.'
+    for file in all_files:
+        # check number of such files in a directory
+        sample_dir = '/'.join(str(file).split('/')[:-1])+'/'
+
+        label = str(file).split('/')[-2]  # Extract the label from the file path
+        labels.append(label)  # Add the label to the list
+        file_names.append(str(file))  # Add the file path to the list
+
+    # Create a pandas dataframe from the collected file names and labels
+    df = pd.DataFrame.from_dict({"image": file_names, "label": labels})
+    dataset = {'image': {}, 'label': {}}
+    for i in sample_range:
+        path = df.iloc[[i]]['image'][i]
+        image = transforms_model(Image.open(path).convert("RGB"))
+        dataset['image'][i] = image
+        label = label_to_id[df.iloc[[i]]['label'][i]]
+        dataset['label'][i] = label
+    return dataset
+
 def test_contr_conj(tree, vocab_words, verbose=False):
     input_ids = tree.ndata['x'] # word id of the node
     labels = tree.ndata['y'] #  label of the node
