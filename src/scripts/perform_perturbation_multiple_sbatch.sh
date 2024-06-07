@@ -25,6 +25,8 @@ elif [ "$data_mode" = "imdb" ]; then
 	list2=("removal" "generation")
   data_dir=""
 elif [ "$data_mode" = "fer" ]; then
+  list1=("minimize" "maximize")
+	list2=("removal" "generation")
   data_dir="/home/thomas_schnake/ResearchProjects/symbXAI_project/datasets/fer_images/"
 fi
 
