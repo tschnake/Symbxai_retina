@@ -116,7 +116,7 @@ def main(sample_range,
         raise NotImplementedError(f'data mode {data_mode} does not exist')
 
     # Perform perturbation
-    attribution_methods = [ 'random', 'SymbXAI', 'LRP', 'PredDiff' ]
+    attribution_methods = [ 'random'] #, 'SymbXAI', 'LRP', 'PredDiff' ]
 
     if auc_task and perturbation_type:
         optimize_parameter = [(auc_task, perturbation_type)]
@@ -128,7 +128,8 @@ def main(sample_range,
 
     for sample_id in dataset[input_type].keys():
         went_through = 0
-        output_dict = {param: {attribution_method: {} for attribution_method in attribution_methods} for param in optimize_parameter }
+        output_dict_curves = {param: {attribution_method: {} for attribution_method in attribution_methods} for param in optimize_parameter }
+        output_dict_orderings = {param: {attribution_method: {} for attribution_method in attribution_methods} for param in optimize_parameter }
 
         for attribution_method in attribution_methods:
             for auc_task, perturbation_type in optimize_parameter:
@@ -151,7 +152,7 @@ def main(sample_range,
 
                     model_output = lambda sample: (model(**sample)['logits']*output_mask).sum().item()
                     empty_sample = tokenizer('', return_tensors="pt")
-                    node_mapping = {i:i for i in explainer.node_domain}
+                    node_mapping = {i:[i] for i in explainer.node_domain}
 
                 elif data_mode == 'fer': ## Vision
                     sample, label = dataset[input_type][sample_id], dataset['label'][sample_id]
@@ -169,7 +170,7 @@ def main(sample_range,
                 # Compute the node ordering.
                 ## This might take some time...
                 node_ordering = get_node_ordering(explainer, attribution_method, auc_task, perturbation_type, verbose=True, node_mapping=node_mapping)
-
+                output_dict_orderings[(auc_task, perturbation_type)][attribution_method][sample_id] = node_ordering
                 ### Create purturbation curve
                 gliding_subset_ids = []
                 if perturbation_type == 'removal':
@@ -201,7 +202,7 @@ def main(sample_range,
                     # save alternative output
                     output_sequence.append(model_output(new_sample))
 
-                output_dict[(auc_task, perturbation_type)][attribution_method][sample_id] = output_sequence
+                output_dict_curves[(auc_task, perturbation_type)][attribution_method][sample_id] = output_sequence
 
                 # save the results in files
                 # save_to_file(output_sequence,
@@ -214,12 +215,16 @@ def main(sample_range,
                 went_through +=1
 
         if save_seperatly:
-            filename = f'perturbation_results_{data_mode}_{sample_id}_{auc_task}_{perturbation_type}.pkl'
+            filename_curves = f'perturbation_results_{data_mode}_{sample_id}_{auc_task}_{perturbation_type}_curves.pkl'
+            filename_orderings = f'perturbation_results_{data_mode}_{sample_id}_{auc_task}_{perturbation_type}_orderings.pkl'
         else:
-            filename = f'perturbation_results_{data_mode}_{sample_id}.pkl'
+            filename_curves = f'perturbation_results_{data_mode}_{sample_id}_curves.pkl'
+            filename_orderings = f'perturbation_results_{data_mode}_{sample_id}_orderings.pkl'
 
-        with open(result_dir + filename,'wb') as f:
-            pickle.dump(output_dict, f)
+        with open(result_dir + filename_curves,'wb') as f:
+            pickle.dump(output_dict_curves, f)
+        with open(result_dir + filename_orderings,'wb') as f:
+            pickle.dump(output_dict_orderings, f)
 
         if went_through > 0:
             print('ok', went_through, 'times for', sample_id)
