@@ -14,3 +14,4 @@ pydantic
 # -U git+https://github.com/luca-medeiros/lang-segment-anything.git
 html2image
 ipython
+opencv-python

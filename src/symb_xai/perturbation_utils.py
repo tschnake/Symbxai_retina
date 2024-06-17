@@ -9,12 +9,15 @@ def get_node_ordering(explainer,
                     attribution_method,
                     auc_task,
                     perturbation_type,
-                    verbose=False):
-# model, sample, tokenizer,
+                    verbose=False,
+                    node_mapping=None):
+
+    if node_mapping is None:
+        node_mapping = {i:[i] for i in explainer.node_domain}
 
     # We implement not the exaustive search, but the local best guess search
-    def local_best_guess_search(explainer, set_attribution_fct, auc_task):
-        node_heat = np.zeros(explainer.num_nodes)
+    def local_best_guess_search(set_attribution_fct, auc_task, node_mapping):
+        node_heat = np.zeros(len(node_mapping.keys()))
         growing_node_set = []
 
         # We want to see the development of the iteration when verbose is True
@@ -23,10 +26,10 @@ def get_node_ordering(explainer,
         else:
             loop_wrapper = lambda iter_range: iter_range
 
-        for synth_heat in loop_wrapper(range(explainer.num_nodes, 0, -1)):
+        for synth_heat in loop_wrapper(range(len(node_mapping.keys()), 0, -1)):
             # Test which node in this iteration is the most promising
             mask_val = -float('inf') if auc_task == 'maximize' else float('inf')
-            local_node_heat = [ set_attribution_fct( growing_node_set + [node_id] ) if node_id not in growing_node_set else mask_val for node_id in explainer.node_domain  ]
+            local_node_heat = [ set_attribution_fct( growing_node_set + patches ) if node_id not in growing_node_set else mask_val for node_id, patches in node_mapping.items()  ]
             if auc_task == 'minimize':
                 winning_node_id = np.argmin(local_node_heat)
             elif auc_task == 'maximize':
@@ -41,17 +44,21 @@ def get_node_ordering(explainer,
 
     # Generate node heat
     if attribution_method == 'random':
-        node_heat = np.random.rand(len(explainer.node_domain))
+        node_heat = np.random.rand(len(node_mapping.keys()))
 
     elif attribution_method == 'LRP':
-        node_heat = explainer.node_relevance()
+        node_heat = np.zeros(len(node_mapping.keys()))
+        feat_relevance = explainer.node_relevance()
+        for new_patch, patches in node_mapping.items():
+            node_heat[new_patch] = sum( feat_relevance[index] for index in patches )
+
 
     elif attribution_method == 'SHAP':
         ...
     elif attribution_method == 'PredDiff':
         node_heat = []
-        for node_id in explainer.node_domain:
-            curr_rel = explainer.subgraph_relevance(explainer.node_domain) - explainer.subgraph_relevance([ ids for ids in explainer.node_domain if ids != node_id] )
+        for patches in node_mapping.values():
+            curr_rel = explainer.subgraph_relevance(explainer.node_domain) - explainer.subgraph_relevance([ ids for ids in explainer.node_domain if ids not in patches ] )
             node_heat.append(curr_rel)
         node_heat = np.array(node_heat)
 
@@ -63,7 +70,7 @@ def get_node_ordering(explainer,
         else:
             raise NotImplementedError
 
-        node_ordering = np.argsort(-local_best_guess_search(explainer, set_attribution_fct, auc_task))
+        node_ordering = np.argsort(-local_best_guess_search( set_attribution_fct, auc_task, node_mapping))
 
     else:
         raise NotImplementedError

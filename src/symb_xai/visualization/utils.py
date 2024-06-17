@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import networkx as nx
 import copy, torch
+import numpy as np
 import dgl
 from networkx.drawing.nx_pydot import graphviz_layout
 
@@ -8,7 +9,8 @@ from networkx.drawing.nx_pydot import graphviz_layout
 def rescale_score_by_abs(
         score,
         max_score,
-        min_score
+        min_score,
+        margin=.2
 ):
     """
     Normalize the relevance value (=score), accordingly to the extremal relevance values (max_score and min_score),
@@ -22,29 +24,29 @@ def rescale_score_by_abs(
 
         if max_score >= abs(min_score):  # deepest color is positive
             if score >= 0:
-                return 0.5 + 0.5 * (score / max_score)
+                return 0.5 + (0.5 - margin/2) * (score / max_score)
             else:
-                return 0.5 - 0.5 * (abs(score) / max_score)
+                return 0.5 - (0.5 - margin/2) * (abs(score) / max_score)
 
         else:  # deepest color is negative
             if score >= 0:
-                return 0.5 + 0.5 * (score / abs(min_score))
+                return 0.5 + (0.5 - margin/2) * (score / abs(min_score))
             else:
-                return 0.5 - 0.5 * (score / min_score)
+                return 0.5 - (0.5 - margin/2) * (score / min_score)
 
                 # CASE 2: ONLY positive scores occur -----------------------------
     elif max_score > 0 and min_score >= 0:
         if max_score == min_score:
             return 1.0
         else:
-            return 0.5 + 0.5 * (score / max_score)
+            return 0.5 + (0.5 - margin/2) * (score / max_score)
 
     # CASE 3: ONLY negative scores occur -----------------------------
     elif max_score <= 0 and min_score < 0:
         if max_score == min_score:
             return 0.0
         else:
-            return 0.5 - 0.5 * (score / min_score)
+            return 0.5 - (0.5 - margin/2) * (score / min_score)
 
 
 def getRGB(c_tuple):
@@ -96,12 +98,29 @@ def make_text_string(lsent):
 
     return sentence
 
-def remove_patches(sample, patch_ids):
-    new_sample = torch.zeros(sample.shape)+.5
-    for i in range(14):
-        for j in range(14):
-            if (i*14 + j) not in patch_ids:
-                new_sample[:,i*16:(i+1)*16,j*16:(j+1)*16] = sample[:,i*16:(i+1)*16,j*16:(j+1)*16]
+def remove_patches(sample, patch_ids, mode='TALEA_inpainter'):
+    if mode == 'gray_patch':
+        new_sample = torch.zeros(sample.shape)+.5
+        for i in range(14):
+            for j in range(14):
+                if (i*14 + j) not in patch_ids:
+                    new_sample[:,i*16:(i+1)*16,j*16:(j+1)*16] = sample[:,i*16:(i+1)*16,j*16:(j+1)*16]
+    elif mode == 'TALEA_inpainter':
+        import cv2 as cv
+        mask = torch.zeros(sample.shape[1:])
+        for i in range(14):
+            for j in range(14):
+                if (i*14 + j) in patch_ids:
+                    mask[i*16:(i+1)*16,j*16:(j+1)*16] = 1
+
+        new_sample = cv.inpaint((sample.permute(1,2,0)*255).numpy().astype(np.uint8),
+                 (mask*255).numpy().astype(np.uint8),3,
+                 cv.INPAINT_TELEA)
+        new_sample = torch.tensor(new_sample).permute(2,0,1)/255
+
+    else:
+        raise NotImplementedError(f'mode {mode} does not exist')
+
     return new_sample
 
 def vis_barh_query(atts, filename=False):

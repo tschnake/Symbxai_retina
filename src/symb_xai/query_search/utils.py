@@ -157,12 +157,20 @@ def calc_weights(weight_mode, hars_div, all_queries):
 
     return weight_vec
 
+def queryhash2featset(query_hash, tokens):
+    # if type(query_hash[0]) == frozenset:
+    featsets = frozenset([frozenset([ idx if idx >= 0 else idx + len(tokens) for idx in fset ] ) for fset in query_hash])
+    # else:
+    #     featsets = frozenset([ idx if idx >= 0 else idx + len(tokens) for idx in query_hash ] )
+    return featsets
+
+
 def setup_queries(  feat_domain,
                     tokens,
                     max_and_order,
                     max_setsize= float('inf'),
                     max_indexdist=1,
-                    mode='conj. disj. reasonably mixed',
+                    mode='conj. disj. (neg. disj.) reasonably mixed',
                     neg_tokens=None):
 
     def check_pairwise_dist(elem_list, max_indexdist):
@@ -184,13 +192,6 @@ def setup_queries(  feat_domain,
     all_sets = [ fset for fset  in all_sets if check_pairwise_dist(fset, max_indexdist) ]
     if mode in ['conj. disj. neg. reasonably mixed', 'conj. disj. (neg. disj.) reasonably mixed' ]:
         all_sets += [ [idx -len(tokens) for idx in fset] for fset in all_sets] # negative indices mean negating a set.
-
-    def queryhash2featset(query_hash):
-        # if type(query_hash[0]) == frozenset:
-        featsets = frozenset([frozenset([ idx if idx >= 0 else idx + len(tokens) for idx in fset ] ) for fset in query_hash])
-        # else:
-        #     featsets = frozenset([ idx if idx >= 0 else idx + len(tokens) for idx in query_hash ] )
-        return featsets
 
     queries = []
     all_hashs_check = set()
@@ -217,14 +218,14 @@ def setup_queries(  feat_domain,
 
             elif mode == 'conj. disj. neg. reasonably mixed':
 
-                featsets = queryhash2featset(curr_sets)
+                featsets = queryhash2featset(curr_sets, tokens)
                 if sum(map(len, featsets)) != len(set().union(*featsets)): continue
                 else: ...
                 str_rep = setids2logicalANDquery(curr_sets, tokens)
 
             elif mode == 'conj. disj. (neg. disj.) reasonably mixed':
-                featsets = queryhash2featset(curr_sets)
-                if sum(map(len, featsets)) != len(set().union(*featsets)): continue
+                featsets = queryhash2featset(curr_sets, tokens)
+                if sum(map(len, curr_sets)) != len(set().union(*featsets)): continue
                 str_rep = setids2logicalANDquery(curr_sets, tokens, mode= 'neg. disj.')
 
                 # make the frozenset of negative values into multple 1 item frozensets

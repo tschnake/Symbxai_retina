@@ -45,20 +45,21 @@ def load_imdb_dataset(sample_range):
 
     return dataset
 
-def load_fer_dataset(sample_range, processor, data_dir):
+def load_fer_dataset(sample_range, processor, data_dir, image_transforms=None):
     from PIL import ImageFile, Image
     import pandas as pd
     # Define the list of file names
     from pathlib import Path
 
-    crop_size = 224
-    size = int((256 / 224) * crop_size)
-    transforms_model = torchvision.transforms.Compose([
-        torchvision.transforms.Resize(size=size, interpolation=3),
-        torchvision.transforms.CenterCrop(crop_size),
-        torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize(mean=processor.image_mean, std=processor.image_std)
-    ])
+    if image_transforms is None:
+        crop_size = 224
+        size = int((256 / 224) * crop_size)
+        image_transforms = torchvision.transforms.Compose([
+            torchvision.transforms.Resize(size=size, interpolation=3),
+            torchvision.transforms.CenterCrop(crop_size),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=processor.image_mean, std=processor.image_std)
+        ])
 
     label_to_id = {'sad': 0, 'disgust': 1, 'angry': 2, 'neutral': 3, 'fear': 4, 'surprise': 5, 'happy': 6}
     file_names = []
@@ -80,7 +81,7 @@ def load_fer_dataset(sample_range, processor, data_dir):
     dataset = {'image': {}, 'label': {}}
     for i in sample_range:
         path = df.iloc[[i]]['image'][i]
-        image = transforms_model(Image.open(path).convert("RGB"))
+        image = image_transforms(Image.open(path).convert("RGB"))
         dataset['image'][i] = image
         label = label_to_id[df.iloc[[i]]['label'][i]]
         dataset['label'][i] = label

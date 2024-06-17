@@ -333,11 +333,11 @@ def bert_base_uncased_model(
 
 # ------ LRP for BERT Model ------
 class ModifiedBertSelfAttention(nn.Module):
-    def __init__(self, self_attention):
+    def __init__(self, self_attention, gam=.09):
         super(ModifiedBertSelfAttention, self).__init__()
-        self.query = ModifiedLinear(fc=self_attention.query, transform=gamma())
-        self.key = ModifiedLinear(fc=self_attention.key, transform=gamma())
-        self.value = ModifiedLinear(fc=self_attention.value, transform=gamma())
+        self.query = self_attention.query #ModifiedLinear(fc=self_attention.query, transform=gamma(), gam=gam) ## actually we should modify anything here!
+        self.key = self_attention.key #ModifiedLinear(fc=self_attention.key, transform=gamma(),gam=gam)
+        self.value = self_attention.value #ModifiedLinear(fc=self_attention.value, transform=gamma(),gam=gam)
 
         self.num_attention_heads = self_attention.num_attention_heads
         self.attention_head_size = self_attention.attention_head_size
@@ -370,9 +370,9 @@ class ModifiedBertSelfAttention(nn.Module):
 
 
 class ModifiedBertSelfOutput(nn.Module):
-    def __init__(self, self_output):
+    def __init__(self, self_output, gam=.09):
         super(ModifiedBertSelfOutput, self).__init__()
-        self.dense = ModifiedLinear(fc=self_output.dense, transform=gamma())
+        self.dense = self_output.dense #ModifiedLinear(fc=self_output.dense, transform=gamma(), gam=gam)
         self.LayerNorm = ModifiedLayerNorm(norm_layer=self_output.LayerNorm
                                            # normalized_shape=self_output.dense.weight.shape[1]
                                            )
@@ -386,7 +386,7 @@ class ModifiedBertSelfOutput(nn.Module):
 
 
 class ModifiedBertAttention(nn.Module):
-    def __init__(self, attention):
+    def __init__(self, attention, gam=.09):
         super(ModifiedBertAttention, self).__init__()
         self.self = ModifiedBertSelfAttention(attention.self)
         self.output = ModifiedBertSelfOutput(attention.output)
@@ -399,9 +399,9 @@ class ModifiedBertAttention(nn.Module):
 
 
 class ModifiedBertIntermediate(nn.Module):
-    def __init__(self, intermediate):
+    def __init__(self, intermediate, gam=.15):
         super(ModifiedBertIntermediate, self).__init__()
-        self.dense = ModifiedLinear(fc=intermediate.dense, transform=gamma())
+        self.dense = ModifiedLinear(fc=intermediate.dense, transform=gamma(), gam=gam)
         self.intermediate_act_fn = ModifiedAct(intermediate.intermediate_act_fn)
 
     def forward(self, hidden_states):
@@ -411,9 +411,9 @@ class ModifiedBertIntermediate(nn.Module):
 
 
 class ModifiedBertOutput(nn.Module):
-    def __init__(self, output):
+    def __init__(self, output, gam=.09):
         super(ModifiedBertOutput, self).__init__()
-        self.dense = ModifiedLinear(fc=output.dense, transform=gamma())
+        self.dense = output.dense #ModifiedLinear(fc=output.dense, transform=gamma(),gam=gam)
         self.LayerNorm = ModifiedLayerNorm(norm_layer=output.LayerNorm
                                            # normalized_shape=output.dense.weight.shape[1]
                                            )
@@ -426,10 +426,10 @@ class ModifiedBertOutput(nn.Module):
 
 
 class ModifiedBertLayer(nn.Module):
-    def __init__(self, layer):
+    def __init__(self, layer, gam=.15):
         super(ModifiedBertLayer, self).__init__()
         self.attention = ModifiedBertAttention(layer.attention)
-        self.intermediate = ModifiedBertIntermediate(layer.intermediate)
+        self.intermediate = ModifiedBertIntermediate(layer.intermediate, gam=gam)
         self.output = ModifiedBertOutput(layer.output)
 
     def forward(self, hidden_states):
@@ -441,11 +441,11 @@ class ModifiedBertLayer(nn.Module):
 
 
 class ModifiedBertEncoder(nn.Module):
-    def __init__(self, encoder):
+    def __init__(self, encoder, gam=0.15):
         super(ModifiedBertEncoder, self).__init__()
         layers = []
         for i, layer in enumerate(encoder.layer):
-            layers.append(ModifiedBertLayer(layer))
+            layers.append(ModifiedBertLayer(layer, gam=gam))
         self.layer = nn.ModuleList(layers)
 
     def forward(self, hidden_states):
@@ -455,9 +455,9 @@ class ModifiedBertEncoder(nn.Module):
 
 
 class ModifiedBertPooler(nn.Module):
-    def __init__(self, pooler):
+    def __init__(self, pooler, gam=0.15):
         super(ModifiedBertPooler, self).__init__()
-        self.dense = ModifiedLinear(fc=pooler.dense, transform=gamma())
+        self.dense = ModifiedLinear(fc=pooler.dense, transform=gamma(), gam=gam)
         self.activation = ModifiedAct(pooler.activation)
 
     def forward(self, hidden_states):
@@ -469,12 +469,12 @@ class ModifiedBertPooler(nn.Module):
 
 
 class ModifiedBertModel(nn.Module):
-    def __init__(self, bert, add_pooling_layer=True):
+    def __init__(self, bert, gam=0.15, add_pooling_layer=True):
         super(ModifiedBertModel, self).__init__()
-        self.encoder = ModifiedBertEncoder(bert.encoder)
+        self.encoder = ModifiedBertEncoder(bert.encoder, gam=gam)
         self.add_pooling_layer = add_pooling_layer
         if add_pooling_layer:
-            self.pooler = ModifiedBertPooler(bert.pooler)
+            self.pooler = ModifiedBertPooler(bert.pooler, gam=gam)
 
     def forward(self, x):
         hidden_states = self.encoder(x)
@@ -485,10 +485,10 @@ class ModifiedBertModel(nn.Module):
 
 
 class ModifiedBertForSequenceClassification(nn.Module):
-    def __init__(self, bert_classification):
+    def __init__(self, bert_classification, gam=0.15):
         super(ModifiedBertForSequenceClassification, self).__init__()
-        self.bert = ModifiedBertModel(bert_classification.bert)
-        self.classifier = ModifiedLinear(fc=bert_classification.classifier, transform=gamma())
+        self.bert = ModifiedBertModel(bert_classification.bert, gam=gam)
+        self.classifier = bert_classification.classifier # ModifiedLinear(fc=bert_classification.classifier, transform=gamma(), gam=.09)
 
     def forward(self, x):
         hidden_states = self.bert(x)

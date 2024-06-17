@@ -675,6 +675,7 @@ class BERTSymbXAI(SymbXAI):
             embeddings,
             scal_val=1.,
             use_lrp_layers=True,
+            gam=0.15
     ):
         model.zero_grad()
 
@@ -687,8 +688,10 @@ class BERTSymbXAI(SymbXAI):
         # Make the model explainable.
         if use_lrp_layers:
             modified_model = ModifiedBertForSequenceClassification(
-                model
+                model,
+                gam=gam
             )
+
         else:
             modified_model = model
 

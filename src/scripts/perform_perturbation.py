@@ -18,6 +18,28 @@ from filelock import FileLock
 import pickle
 
 
+def create_mapping():
+    mapping = {}
+    new_id = 0
+
+    for i in range(7):
+        for j in range(7):
+            # Calculate the top-left corner index of the 2x2 patch in the 14x14 grid
+            top_left = (i * 2) * 14 + (j * 2) + 1
+            # The four indices of the 2x2 patch
+            patch_indices = [
+                top_left,
+                top_left + 1,
+                top_left + 14,
+                top_left + 14 + 1
+            ]
+            # Add the mapping to the dictionary
+            mapping[new_id] = patch_indices
+            new_id += 1
+
+    return mapping
+
+
 @click.command()
 @click.option('--sample_range',
                 cls=PythonLiteralOption,
@@ -94,7 +116,7 @@ def main(sample_range,
         raise NotImplementedError(f'data mode {data_mode} does not exist')
 
     # Perform perturbation
-    attribution_methods = [ 'SymbXAI', 'LRP', 'PredDiff','random' ]
+    attribution_methods = [ 'random', 'SymbXAI', 'LRP', 'PredDiff' ]
 
     if auc_task and perturbation_type:
         optimize_parameter = [(auc_task, perturbation_type)]
@@ -129,6 +151,7 @@ def main(sample_range,
 
                     model_output = lambda sample: (model(**sample)['logits']*output_mask).sum().item()
                     empty_sample = tokenizer('', return_tensors="pt")
+                    node_mapping = {i:i for i in explainer.node_domain}
 
                 elif data_mode == 'fer': ## Vision
                     sample, label = dataset[input_type][sample_id], dataset['label'][sample_id]
@@ -142,10 +165,10 @@ def main(sample_range,
                                         )
                     model_output = lambda sample: (model(sample.unsqueeze(0)).logits*output_mask).sum().item()
                     empty_sample = torch.zeros(sample.shape)+.5
-
+                    node_mapping = create_mapping()
                 # Compute the node ordering.
                 ## This might take some time...
-                node_ordering = get_node_ordering(explainer, attribution_method, auc_task, perturbation_type, verbose=True)
+                node_ordering = get_node_ordering(explainer, attribution_method, auc_task, perturbation_type, verbose=True, node_mapping=node_mapping)
 
                 ### Create purturbation curve
                 gliding_subset_ids = []
@@ -154,8 +177,8 @@ def main(sample_range,
                 elif perturbation_type == 'generation':
                     output_sequence = [model_output(empty_sample)]
 
-                for node_id in tqdm(node_ordering):
-                    gliding_subset_ids.append(node_id)
+                for node_id in tqdm(node_ordering, desc=f'flip {attribution_method}'):
+                    gliding_subset_ids += node_mapping[node_id]
                     if perturbation_type == 'removal':
                         input_ids = [ids for ids in explainer.node_domain if ids not in gliding_subset_ids]
                         input_ids = sorted(input_ids)
