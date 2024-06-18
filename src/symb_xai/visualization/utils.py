@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import networkx as nx
+import cv2 as cv
 import copy, torch
 import numpy as np
 import dgl
@@ -106,7 +107,6 @@ def remove_patches(sample, patch_ids, mode='TALEA_inpainter'):
                 if (i*14 + j) not in patch_ids:
                     new_sample[:,i*16:(i+1)*16,j*16:(j+1)*16] = sample[:,i*16:(i+1)*16,j*16:(j+1)*16]
     elif mode == 'TALEA_inpainter':
-        import cv2 as cv
         mask = torch.zeros(sample.shape[1:])
         for i in range(14):
             for j in range(14):
