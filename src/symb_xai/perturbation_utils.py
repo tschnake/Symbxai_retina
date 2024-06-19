@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from tqdm import tqdm
+from functools import reduce
 
 # from symb_xai.lrp.symbolic_xai import BERTSymbXAI
 
@@ -43,6 +44,8 @@ def get_node_ordering(explainer,
 
             node_heat[winning_node_id] = synth_heat # This is a synthetic heat, so it's just the ordering we want to have
             growing_node_set += node_mapping[winning_node_id]
+
+        assert set(growing_node_set) == set( reduce(lambda x,y: x+y, node_mapping.values())), 'we did not catch all patches'
 
         return node_heat
 
