@@ -29,10 +29,9 @@ elif [ "$data_mode" = "fer" ]; then
 	list2=("removal" "generation")
   data_dir="/home/thomas_schnake/ResearchProjects/symbXAI_project/datasets/fer_images/"
 fi
-
-for auc_task in "${list1[@]}"; do
-    for perturbation_type in "${list2[@]}"; do
-        for ids in $range; do
+for ids in $range; do
+    for auc_task in "${list1[@]}"; do
+        for perturbation_type in "${list2[@]}"; do
           sbatch --mem=15G perform_perturbation_apptainer_wrapper.sh --sample_range "[${ids}]" --result_dir "${resultfolder}" --data_mode "${data_mode}" --auc_task "$auc_task" --perturbation_type "${perturbation_type}" --data_dir "${data_dir}"
         done
     done
