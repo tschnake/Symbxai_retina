@@ -176,7 +176,8 @@ def main(sample_range,
                                                     auc_task,
                                                     perturbation_type,
                                                     verbose=True,
-                                                    node_mapping=node_mapping_model_patches)
+                                                    node_mapping=node_mapping_model_patches,
+                                                    add_cls= True if data_mode=='fer' else False)
 
                 output_dict_orderings[(auc_task, perturbation_type)][attribution_method][sample_id] = node_ordering
                 ### Create purturbation curve

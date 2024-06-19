@@ -10,7 +10,8 @@ def get_node_ordering(explainer,
                     auc_task,
                     perturbation_type,
                     verbose=False,
-                    node_mapping=None):
+                    node_mapping=None,
+                    add_cls=True):
 
     if node_mapping is None:
         node_mapping = {i:[i] for i in explainer.node_domain}
@@ -67,7 +68,7 @@ def get_node_ordering(explainer,
         if perturbation_type == 'removal':
             set_attribution_fct = lambda S: explainer.subgraph_relevance( [ idn for idn in explainer.node_domain if idn not in S ])
         elif perturbation_type == 'generation':
-            if data_mode == 'fer':
+            if add_cls:
                 set_attribution_fct = lambda S: explainer.subgraph_relevance([0]+ S)
             else:
                 set_attribution_fct = lambda S: explainer.subgraph_relevance(S)
