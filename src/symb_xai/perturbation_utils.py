@@ -29,7 +29,8 @@ def get_node_ordering(explainer,
         for synth_heat in loop_wrapper(range(len(node_mapping.keys()), 0, -1)):
             # Test which node in this iteration is the most promising
             mask_val = -float('inf') if auc_task == 'maximize' else float('inf')
-            local_node_heat = [ set_attribution_fct( growing_node_set + patches ) if node_id not in growing_node_set else mask_val for node_id, patches in node_mapping.items()  ]
+
+            local_node_heat = [set_attribution_fct( growing_node_set + patches ) if node_id not in growing_node_set else mask_val for node_id, patches in node_mapping.items()]
             if auc_task == 'minimize':
                 winning_node_id = np.argmin(local_node_heat)
             elif auc_task == 'maximize':
@@ -66,7 +67,10 @@ def get_node_ordering(explainer,
         if perturbation_type == 'removal':
             set_attribution_fct = lambda S: explainer.subgraph_relevance( [ idn for idn in explainer.node_domain if idn not in S ])
         elif perturbation_type == 'generation':
-            set_attribution_fct = lambda S: explainer.subgraph_relevance(S)
+            if data_mode == 'fer':
+                set_attribution_fct = lambda S: explainer.subgraph_relevance([0]+ S)
+            else:
+                set_attribution_fct = lambda S: explainer.subgraph_relevance(S)
         else:
             raise NotImplementedError
 
