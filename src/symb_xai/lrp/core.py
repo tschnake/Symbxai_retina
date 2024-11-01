@@ -43,7 +43,7 @@ class ModifiedLinear(Module):
             fc: torch.nn.Linear,
             transform: Any,
             zero_bias: bool = False,
-            gam = 0.15
+            gam = 1
     ):
         """
         A wrapper to make torch.nn.Linear explainable.
@@ -63,7 +63,7 @@ class ModifiedLinear(Module):
                 )
 
         self.transform = transform
-        
+
         self.modifiers = [
             modified_layer(layer=self.fc, transform=gamma(gam=gam, minimum=0)),  # Pos
             modified_layer(layer=self.fc, transform=gamma(gam=gam, maximum=0, modify_bias=False)),  # Neg

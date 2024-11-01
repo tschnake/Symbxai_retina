@@ -10,7 +10,7 @@ def load_sst_treebank(sample_range, mode='train', verbose=True):
     sample_range = list(sample_range)
     dataset = SSTDataset(mode=mode)
     vocab_words = list(dataset.vocab.keys())
-    sst_dataset = {'validation': {
+    sst_dataset = {mode: {
             'sentence': {},
             'label'   : {}
     }}
@@ -28,8 +28,8 @@ def load_sst_treebank(sample_range, mode='train', verbose=True):
         target = int(tree.ndata['y'][0]>2)
         sentence =  make_text_string(lsent)
 
-        sst_dataset['validation']['sentence'][sid] = sentence
-        sst_dataset['validation']['label'][sid]    = target
+        sst_dataset[mode]['sentence'][sid] = sentence
+        sst_dataset[mode]['label'][sid]    = target
     return sst_dataset
 
 def load_imdb_dataset(sample_range):

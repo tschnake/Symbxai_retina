@@ -171,7 +171,8 @@ def setup_queries(  feat_domain,
                     max_setsize= float('inf'),
                     max_indexdist=1,
                     mode='conj. disj. (neg. disj.) reasonably mixed',
-                    neg_tokens=None):
+                    neg_tokens=None,
+                    repres_style='HTML'):
 
     def check_pairwise_dist(elem_list, max_indexdist):
         if len(elem_list) == 1:
@@ -209,24 +210,24 @@ def setup_queries(  feat_domain,
 
 
             if mode == 'set conjuction':
-                str_rep = setids2logicalANDquery(curr_sets, tokens)
+                str_rep = setids2logicalANDquery(curr_sets, tokens, style=repres_style)
             elif mode == 'conj. disj. reasonably mixed':
                 # Check if sets are pairwise disjoint
                 if sum(map(len, curr_sets)) != len(set().union(*curr_sets)): continue
                 else: ...
-                str_rep = setids2logicalANDquery(curr_sets, tokens)
+                str_rep = setids2logicalANDquery(curr_sets, tokens, style=repres_style)
 
             elif mode == 'conj. disj. neg. reasonably mixed':
 
                 featsets = queryhash2featset(curr_sets, tokens)
                 if sum(map(len, featsets)) != len(set().union(*featsets)): continue
                 else: ...
-                str_rep = setids2logicalANDquery(curr_sets, tokens)
+                str_rep = setids2logicalANDquery(curr_sets, tokens, style=repres_style)
 
             elif mode == 'conj. disj. (neg. disj.) reasonably mixed':
                 featsets = queryhash2featset(curr_sets, tokens)
                 if sum(map(len, curr_sets)) != len(set().union(*featsets)): continue
-                str_rep = setids2logicalANDquery(curr_sets, tokens, mode= 'neg. disj.')
+                str_rep = setids2logicalANDquery(curr_sets, tokens, mode= 'neg. disj.', style=repres_style)
 
                 # make the frozenset of negative values into multple 1 item frozensets
                 temp_sets = frozenset()

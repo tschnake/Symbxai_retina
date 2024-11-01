@@ -136,7 +136,8 @@ class SymbXAI:
             lamb,
             R_T=None,
             batch_dim=False,
-            scal_val=1.
+            scal_val=1.,
+            start_subgraph_at=None
     ):
         """
         Init function. It basically sets some hyperparameters and saves the activations.
@@ -156,6 +157,7 @@ class SymbXAI:
         self.node2idn = None
         self.walk_rel_domain = None
         self.walk_rels_computed = False
+        self.start_subgraph_at = start_subgraph_at
 
         # Set up activations.
         self.xs = [x.data]
@@ -278,7 +280,8 @@ class SymbXAI:
 
 
     def node_relevance(
-            self
+            self,
+            stop_at=0
     ):
 
         # Initialize the last relevance.
@@ -291,6 +294,7 @@ class SymbXAI:
         )
 
         for act, layer, layer_id in list(zip(self.xs[:-1], self.layers, range(len(self.layers))))[::-1]:
+
             # Iterate over the nodes.
             R = self._relprop_standard(
                 act,
@@ -309,6 +313,8 @@ class SymbXAI:
             )
 
             curr_node = new_node
+            if layer_id <= stop_at: break
+
         node_rel = curr_node.R.sum(-1) * self.scal_val
 
         return node_rel
@@ -405,9 +411,12 @@ class SymbXAI:
             subgraph,
             from_walks=False,
             dynamic_prog=False
+            # start_subgraph_at=None
     ):
+
         if type(subgraph) != list:
             subgraph = list(subgraph)
+        assert len(set(subgraph)) == len(subgraph), 'We have dublicates in the subset.'
 
         if from_walks:
             if self.walk_rels_tens is None:
@@ -437,6 +446,7 @@ class SymbXAI:
 
             return R_subgraph * self.scal_val
         else:
+
             # Initialize the last relevance.
             curr_subgraph_node = Node(
                 0,
@@ -453,11 +463,15 @@ class SymbXAI:
                                            curr_subgraph_node.R,
                                            curr_subgraph_node.node_rep)
 
+                if self.start_subgraph_at is not None and layer_id > self.start_subgraph_at:
+                    curr_subgraph = self.node_domain
+                else:
+                    curr_subgraph = subgraph
                 # Create new subgraph nodes.
-                new_node = Node(subgraph,
+                new_node = Node(curr_subgraph,
                                 self.lamb_per_layer[layer_id - 1],
                                 curr_subgraph_node,
-                                R[subgraph] if not self.batch_dim else R[0, subgraph],
+                                R[curr_subgraph] if not self.batch_dim else R[0, curr_subgraph],
                                 domain_restrict=None
                                 )
 
@@ -504,7 +518,8 @@ class TransformerSymbXAI(SymbXAI):
             target,
             model,
             embeddings,
-            scal_val=1.
+            scal_val=1.,
+            start_subgraph_at=None
     ):
         model.zero_grad()
 
@@ -553,7 +568,8 @@ class TransformerSymbXAI(SymbXAI):
             lambs,
             R_T=None,
             batch_dim=batch_dim,
-            scal_val=scal_val
+            scal_val=scal_val,
+            start_subgraph_at=start_subgraph_at
         )
 
     def subgraph_relevance(
@@ -563,6 +579,7 @@ class TransformerSymbXAI(SymbXAI):
     ):
         if type(subgraph) != list:
             subgraph = list(subgraph)
+        assert len(set(subgraph)) == len(subgraph), 'We have dublicates in the subset.'
         # TODO: Change the code for from_walks=True
         if from_walks:
             if self.walk_rels_tens is None:
@@ -602,6 +619,10 @@ class TransformerSymbXAI(SymbXAI):
             )
 
             for act, layer, layer_id in list(zip(self.xs[:-1], self.layers, range(len(self.layers))))[::-1]:
+                if self.start_subgraph_at is not None and layer_id > self.start_subgraph_at:
+                    curr_subgraph = self.node_domain
+                else:
+                    curr_subgraph = subgraph
                 # Iterate over the nodes.
                 R = self._relprop_standard(act,
                                            layer,
@@ -618,10 +639,10 @@ class TransformerSymbXAI(SymbXAI):
                                     )
                 else:
                     # Create new subgraph nodes.
-                    new_node = Node(subgraph,
+                    new_node = Node(curr_subgraph,
                                     self.lamb_per_layer[layer_id - 1],
                                     curr_subgraph_node,
-                                    R[subgraph] if not self.batch_dim else R[0, subgraph],
+                                    R[curr_subgraph] if not self.batch_dim else R[0, curr_subgraph],
                                     domain_restrict=None
                                     )
 
@@ -736,6 +757,7 @@ class BERTSymbXAI(SymbXAI):
             from_walks=False
     ):
         # TODO: Change the code for from_walks=True
+        assert len(set(subgraph)) == len(subgraph), 'We have dublicates in the subset.'
         if from_walks:
             if self.walk_rels_tens is None:
                 _ = self.walk_relevance(rel_rep='tens')  # Just build the tensor.
@@ -1012,6 +1034,7 @@ class ViTSymbolicXAI(SymbXAI):
             embeddings,
             scal_val=1.,
             use_lrp_layers=True,
+            start_subgraph_at=None
     ):
         model.zero_grad()
 
@@ -1059,7 +1082,8 @@ class ViTSymbolicXAI(SymbXAI):
             lambs,
             R_T=None,
             batch_dim=batch_dim,
-            scal_val=scal_val
+            scal_val=scal_val,
+            start_subgraph_at = start_subgraph_at
         )
 
     def subgraph_relevance(
@@ -1067,7 +1091,7 @@ class ViTSymbolicXAI(SymbXAI):
             subgraph,
             from_walks=False
     ):
-
+        assert len(set(subgraph)) == len(subgraph), 'We have dublicates in the subset.'
         # TODO: Change the code for from_walks=True
         if from_walks:
             if self.walk_rels_tens is None:
@@ -1097,6 +1121,7 @@ class ViTSymbolicXAI(SymbXAI):
 
             return R_subgraph * self.scal_val
         else:
+
             # Initialize the last relevance.
             curr_subgraph_node = Node(
                 0,
@@ -1107,6 +1132,11 @@ class ViTSymbolicXAI(SymbXAI):
             )
 
             for act, layer, layer_id in list(zip(self.xs[:-1], self.layers, range(len(self.layers))))[::-1]:
+                # fix the subgraph
+                if self.start_subgraph_at is not None and layer_id > self.start_subgraph_at:
+                    curr_subgraph = self.node_domain
+                else:
+                    curr_subgraph = subgraph
                 # Iterate over the nodes.
                 R = self._relprop_standard(act,
                                            layer,
@@ -1123,10 +1153,10 @@ class ViTSymbolicXAI(SymbXAI):
                                     )
                 else:
                     # Create new subgraph nodes.
-                    new_node = Node(subgraph,
+                    new_node = Node(curr_subgraph,
                                     self.lamb_per_layer[layer_id - 1],
                                     curr_subgraph_node,
-                                    R[subgraph] if not self.batch_dim else R[0, subgraph],
+                                    R[curr_subgraph] if not self.batch_dim else R[0, curr_subgraph],
                                     domain_restrict=None
                                     )
 

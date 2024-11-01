@@ -21,7 +21,16 @@ def top_percent_keys(outs, pc_top):
 
     return top_ids
 
-def setids2logicalANDquery(setids, tokens, mode=None):
+def setids2logicalANDquery(setids, tokens, mode=None,style='HTML'):
+    if style == 'HTML':
+        not_token = '&not;'
+        and_token = " &wedge; "
+    elif style == 'Latex':
+        not_token = '$\\neg$'
+        and_token = " $\\wedge$ "
+    else:
+        raise NotImplementedError
+
     # if type(setids[0]) == int:
     #     # query of the form I \wedge J, with I and J being indices
     #     textlist = [tokens[tid] if tid >= 0 else '&not;' + tokens[abs(tid) -1] for tid in setids]
@@ -31,24 +40,36 @@ def setids2logicalANDquery(setids, tokens, mode=None):
         for cset in setids:
             if all([feat<0 for feat in cset]) and len(cset) >1:
                 ctokens = [tokens[tid + len(tokens)] for tid in cset]
-                ctokens[0] = '&not;(' + ctokens[0]
+                if style == 'HTML':
+                    ctokens[0] = '&not;(' + ctokens[0]
+                elif style == 'Latex':
+                    ctokens[0] = '$\\neg$(' + ctokens[0]
+                else:
+                    raise NotImplementedError
                 ctokens[-1] += ')'
             elif all([feat<0 for feat in cset]) and len(cset) ==1:
                 ctokens = [tokens[tid + len(tokens)] for tid in cset]
-                ctokens[0] = '&not;' + ctokens[0]
+                if style == 'HTML':
+                    ctokens[0] = '&not;' + ctokens[0]
+                elif style == 'Latex':
+                    ctokens[0] = '$\\neg$' + ctokens[0]
+                else:
+                    raise NotImplementedError
+
+
             else:
                 ctokens = [tokens[tid] for tid in cset]
 
             query_tokenlists += [ctokens]
     else:
         # query of the form S wedge T, with S and T being sets
-        query_tokenlists = [[tokens[tid] if tid >= 0 else '&not;' + tokens[tid + len(tokens)] for tid in ids_set] for ids_set in setids]
+        query_tokenlists = [[tokens[tid] if tid >= 0 else not_token + tokens[tid + len(tokens)] for tid in ids_set] for ids_set in setids]
 
     textlist = [make_text_string(tokenlist) for tokenlist in query_tokenlists]
     # else:
     #     raise NotImplementedError('Something went wrong.')
 
-    return reduce(lambda x,y: x+" &wedge; "+y , textlist)
+    return reduce(lambda x,y: x + and_token + y , textlist)
 
 def plot_quali_table(sentence, tokens, all_queries, vismode, nb_top=5, nb_flop=5, pc_top=10, file_str=None, fontcolor='black'):
     # process the queries into a suitable data format

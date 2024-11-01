@@ -123,28 +123,37 @@ def remove_patches(sample, patch_ids, mode='TALEA_inpainter'):
 
     return new_sample
 
-def vis_barh_query(atts, filename=False):
+def vis_barh_query(atts, filename=False, stackto=None, xlim=None):
     red_color = (1,0.6,0.6)
     blue_color = (.6,.6,1)
-    for ids in atts.keys():
-        fig, ax = plt.subplots(figsize=(4,len(atts[ids])))
-        for key, val in list(atts[ids].items())[::-1]:
+    green_color = (.6, .8, .6)
+
+    fig, ax = plt.subplots(figsize=(3,len(atts)))
+    for key, val in list(atts.items())[::-1]:
+        ax.barh(key,
+                width =val,
+                color=red_color if val>0 else blue_color
+                , edgecolor='black', linewidth=1.2)
+        if stackto is not None:
             ax.barh(key,
-                    width =val,
-                    color=red_color if val>0 else blue_color
+                    width =stackto-val,
+                    left=val,
+                    color=green_color
                     , edgecolor='black', linewidth=1.2)
 
-        ax.vlines(x=0, ymin=-.6, ymax= len(atts[ids]) -.4, color='black', ls='--')
+    ax.vlines(x=0, ymin=-.6, ymax= len(atts) -.4, color='black', ls='solid')
+    if xlim:
+        ax.set_xlim(xlim)
+        # ax.vlines(x=xlim[1], ymin=-.6, ymax= len(atts) -.4, color='black', ls='--')
+    for side in ['top','right','bottom','left']:
+            ax.spines[side].set_visible(False)
 
-        for side in ['top','right','bottom','left']:
-                ax.spines[side].set_visible(False)
-
-        plt.xlim([-1,1])
+    # plt.xlim([-1,1])
 #         plt.xticks([-1,0,1], ['-100\%', '0', '100\%'])
-        plt.xticks([])
-        if filename:
-            plt.savefig(filename + f'ids{ids}.svg', transparent=True, dpi=300, bbox_inches = "tight")
-        plt.show()
+    plt.xticks([])
+    if filename:
+        plt.savefig(filename, transparent=True, dpi=300, bbox_inches = "tight")
+    plt.show()
 
 
 def vis_tree_heat(tree, node_heat, vocab_words, node_labels=None, save_dir=None, word_dist=50, node_size=2000):
@@ -247,3 +256,50 @@ def make_color(rel, scaling=1.):
         color = (1,  1.-abs(rel), 1.-abs(rel))
 
     return color
+
+def plot_table(table, subsets, tokens, values):
+    num_subsets, N = table.shape
+
+    fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1, 1]}, figsize=(len(tokens)*2, len(subsets)))
+
+    # Plot histograms
+    for j in range(num_subsets):
+        value = values[j]
+        color = 'red' if value >= 0 else 'blue'
+        ax[0].barh(j, value, color=color, edgecolor='black', alpha=.5)
+
+    ax[0].set_xlim(-0.5, num_subsets - 0.5)
+    ax[0].set_xticks([])
+    ax[0].set_yticks([])
+
+    # Set the bottom and top spines invisible
+    ax[0].spines['bottom'].set_visible(False)
+    ax[0].spines['top'].set_visible(False)
+    ax[0].spines['right'].set_visible(False)
+    ax[0].spines['left'].set_visible(False)
+
+    # Set the Y-axis tick label font size
+    ax[0].tick_params(axis='y', labelsize=20)
+
+    # draw horizontal line
+    ax[0].vlines(0, -0.5, num_subsets - 0.5, colors='black', lw=1)
+
+    # Plot the table
+    for i in range(N):
+        for j in range(num_subsets):
+            color = 'green' if table[j, i] == 1 else 'white'
+            rect = plt.Rectangle([i, j],1,  1, facecolor=color, edgecolor='black', alpha=.6)
+            ax[1].add_patch(rect)
+
+    # Set the x and y ticks
+    ax[1].set_yticks([])
+    ax[1].set_xticks([])
+
+    # Set the limits and aspect ratio
+    ax[1].set_ylim(0, num_subsets)
+    ax[1].set_xlim(0, N)
+    ax[1].set_aspect('equal')
+
+    plt.tight_layout()
+    plt.savefig('intermediate_results/fig1_multi_order_subsets.png', transparent=True)
+    plt.show()
