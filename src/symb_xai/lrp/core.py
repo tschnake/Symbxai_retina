@@ -25,12 +25,12 @@ def modified_layer(
     new_layer = copy.deepcopy(layer)
 
     try:
-        new_layer.weight = torch.nn.Parameter(transform(layer.weight.float()))
+        new_layer.weight = torch.nn.Parameter(transform(layer.weight.float(), name='weight'))
     except AttributeError as e:
         print(e)
 
     try:
-        new_layer.bias = torch.nn.Parameter(transform(layer.bias.float()))
+        new_layer.bias = torch.nn.Parameter(transform(layer.bias.float(), name='bias'))
     except AttributeError as e:
         print(e)
 
@@ -43,7 +43,7 @@ class ModifiedLinear(Module):
             fc: torch.nn.Linear,
             transform: Any,
             zero_bias: bool = False,
-            gam = 1
+            gam = 0.05
     ):
         """
         A wrapper to make torch.nn.Linear explainable.
@@ -59,17 +59,20 @@ class ModifiedLinear(Module):
         if zero_bias:
             if fc.bias is not None:
                 self.fc.bias = torch.nn.Parameter(
-                    torch.zeros(self.fc.bias.shape, dtype=torch.float, device="cuda")
+                    torch.zeros(self.fc.bias.shape, dtype=torch.float, device="cpu")
                 )
 
         self.transform = transform
 
-        self.modifiers = [
-            modified_layer(layer=self.fc, transform=gamma(gam=gam, minimum=0)),  # Pos
-            modified_layer(layer=self.fc, transform=gamma(gam=gam, maximum=0, modify_bias=False)),  # Neg
-            modified_layer(layer=self.fc, transform=gamma(gam=gam, maximum=0)),  # Neg
-            modified_layer(layer=self.fc, transform=gamma(gam=gam, minimum=0, modify_bias=False))  # Pos
-        ]
+        if self.transform is None:
+            self.modifiers = None
+        elif self.transform == 'gamma':
+            self.modifiers = [
+                modified_layer(layer=self.fc, transform=gamma(gam=gam, minimum=0)),  # Pos
+                modified_layer(layer=self.fc, transform=gamma(gam=gam, maximum=0, modify_bias=False)),  # Neg
+                modified_layer(layer=self.fc, transform=gamma(gam=gam, maximum=0)),  # Neg
+                modified_layer(layer=self.fc, transform=gamma(gam=gam, minimum=0, modify_bias=False))  # Pos
+            ]
 
     def forward(
             self,
@@ -78,35 +81,36 @@ class ModifiedLinear(Module):
 
         z = self.fc(x)
 
-        inputs = [
-            x.clamp(min=0),  # Pos
-            x.clamp(max=0),  # Neg
-            x.clamp(min=0),  # Pos
-            x.clamp(max=0)   # Neg
-        ]
+        if self.transform is None:
+            return z
+        elif self.transform == 'gamma':
+            inputs = [
+                x.clamp(min=0),  # Pos
+                x.clamp(max=0),  # Neg
+                x.clamp(min=0),  # Pos
+                x.clamp(max=0)   # Neg
+            ]
 
-        outputs = [
-            self.modifiers[0](inputs[0]),
-            self.modifiers[1](inputs[1]),
-            self.modifiers[2](inputs[2]),
-            self.modifiers[3](inputs[3])
-        ]
+            outputs = [
+                self.modifiers[0](inputs[0]),
+                self.modifiers[1](inputs[1]),
+                self.modifiers[2](inputs[2]),
+                self.modifiers[3](inputs[3])
+            ]
 
-        zp_pos = outputs[0] + outputs[1]
-        zp_neg = outputs[2] + outputs[3]
+            zp_pos = outputs[0] + outputs[1]
+            zp_neg = outputs[2] + outputs[3]
 
-        zp_pos *= (z > 1e-6).float()
-        zp_neg *= (z < 1e-6).float()
+            zp_pos *= (z > 1e-6)
+            zp_neg *= (z < 1e-6)
 
-        zp = zp_pos + zp_neg
-        return (zp.float() * torch.nan_to_num(z.float() / zp.float()).data.float()).float()
-        # return z
+            zp = zp_pos + zp_neg
+            return (zp.float() * torch.nan_to_num(z.float() / zp.float()).data.float()).float()
 
 class ModifiedLayerNorm(Module):
     def __init__(
             self,
             norm_layer: torch.nn.LayerNorm,
-            # normalized_shape: Tuple,
             eps: float = 1e-12,
             zero_bias: bool = False
     ):
@@ -115,7 +119,6 @@ class ModifiedLayerNorm(Module):
         -------------------
 
         :param norm_layer: a norm layer (torch.nn.LayerNorm).
-        # :param normalized_shape:
         :param eps: a value added to the denominator for numerical stability
         :param zero_bias: set the layer's bias to zero. It is useful when checking the conservation property.
         """
@@ -127,7 +130,6 @@ class ModifiedLayerNorm(Module):
         self.norm_layer = norm_layer
         self.weight = norm_layer.weight
         self.bias = norm_layer.bias
-        # self.normalized_shape = normalized_shape
         self.eps = eps
 
     def forward(
@@ -135,14 +137,12 @@ class ModifiedLayerNorm(Module):
             input: torch.Tensor
     ) -> torch.Tensor:
 
-        z = self.norm_layer(input)
         mean = input.mean(dim=-1, keepdim=True)
         var = torch.var(input, unbiased=False, dim=-1, keepdim=True)
         denominator = torch.sqrt(var + self.eps)
         denominator = denominator.detach()
-        zp = ((input - mean) / denominator) * self.weight + self.bias
-        zp = stabilize(zp)
-        return (zp.double() * (z.double() / zp.double()).data.double()).float()
+        z = ((input - mean) / denominator) * self.weight + self.bias
+        return z
 
 
 class ModifiedAct(Module):
@@ -167,4 +167,4 @@ class ModifiedAct(Module):
         z = self.act(x)
         zp = self.modified_act(x)
         zp = stabilize(zp)
-        return (zp.double() * (z.double() / zp.double()).data.double()).float()
+        return (zp.float() * torch.nan_to_num(z.float() / zp.float()).data.float()).float()
