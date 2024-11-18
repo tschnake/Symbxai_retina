@@ -5,7 +5,7 @@ from tqdm import tqdm
 from symb_xai.model.transformer import bert_base_uncased_model
 from symb_xai.lrp.symbolic_xai import BERTSymbXAI
 from symb_xai.utils import powerset, Query
-from symb_xai.visualization.query_search import setids2logicalANDquery
+#from symb_xai.visualization.query_search import setids2logicalANDquery
 from random import shuffle
 from transformers import BertTokenizer
 

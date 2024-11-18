@@ -9,9 +9,9 @@ from ..lrp.core import ModifiedLinear, ModifiedLayerNorm, ModifiedAct
 class ModifiedViTSelfAttention(nn.Module):
     def __init__(self, self_attention):
         super(ModifiedViTSelfAttention, self).__init__()
-        self.query = ModifiedLinear(fc=self_attention.query, transform=gamma())
-        self.key = ModifiedLinear(fc=self_attention.key, transform=gamma())
-        self.value = ModifiedLinear(fc=self_attention.value, transform=gamma())
+        self.query = ModifiedLinear(fc=self_attention.query, transform='gamma', gam=0.05)
+        self.key = ModifiedLinear(fc=self_attention.key, transform='gamma', gam=0.05)
+        self.value = ModifiedLinear(fc=self_attention.value, transform='gamma', gam=0.05)
 
         self.num_attention_heads = self_attention.num_attention_heads
         self.attention_head_size = self_attention.attention_head_size
@@ -46,7 +46,7 @@ class ModifiedViTSelfAttention(nn.Module):
 class ModifiedViTSelfOutput(nn.Module):
     def __init__(self, self_output):
         super(ModifiedViTSelfOutput, self).__init__()
-        self.dense = ModifiedLinear(fc=self_output.dense, transform=gamma())
+        self.dense = ModifiedLinear(fc=self_output.dense, transform='gamma', gam=0.05)
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
@@ -72,7 +72,7 @@ class ModifiedViTAttention(nn.Module):
 class ModifiedViTIntermediate(nn.Module):
     def __init__(self, intermediate):
         super(ModifiedViTIntermediate, self).__init__()
-        self.dense = ModifiedLinear(fc=intermediate.dense, transform=gamma())
+        self.dense = ModifiedLinear(fc=intermediate.dense, transform='gamma', gam=0.05)
         self.intermediate_act_fn = ModifiedAct(intermediate.intermediate_act_fn)
 
     def forward(self, hidden_states):
@@ -84,7 +84,7 @@ class ModifiedViTIntermediate(nn.Module):
 class ModifiedViTOutput(nn.Module):
     def __init__(self, output):
         super(ModifiedViTOutput, self).__init__()
-        self.dense = ModifiedLinear(fc=output.dense, transform=gamma())
+        self.dense = ModifiedLinear(fc=output.dense, transform='gamma', gam=0.05)
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
@@ -142,7 +142,7 @@ class ModifiedViTEncoder(nn.Module):
 class ModifiedViTPooler(nn.Module):
     def __init__(self, pooler):
         super(ModifiedViTPooler, self).__init__()
-        self.dense = ModifiedLinear(fc=pooler.dense, transform=gamma())
+        self.dense = ModifiedLinear(fc=pooler.dense, transform='gamma', gam=0.05)
         self.activation = ModifiedAct(pooler.activation)
 
     def forward(self, hidden_states):
@@ -173,7 +173,7 @@ class ModifiedViTForImageClassification(nn.Module):
     def __init__(self, vit_classification):
         super(ModifiedViTForImageClassification, self).__init__()
         self.vit = ModifiedViTModel(vit_classification.vit)
-        self.classifier = ModifiedLinear(fc=vit_classification.classifier, transform=gamma())
+        self.classifier = ModifiedLinear(fc=vit_classification.classifier, transform='gamma', gam=0.05)
 
     def forward(self, x):
         outputs = self.vit(x)

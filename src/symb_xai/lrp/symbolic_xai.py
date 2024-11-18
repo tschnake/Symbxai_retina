@@ -3,7 +3,7 @@ from functools import reduce
 import numpy as np
 from ..model.transformer import ModifiedTinyTransformerForSequenceClassification,  ModifiedBertForSequenceClassification
 from ..model.vision_transformer import ModifiedViTForImageClassification
-import schnetpack as spk
+# import schnetpack as spk
 from ..utils import powerset
 from torch_geometric.nn import Sequential
 
@@ -879,7 +879,7 @@ class BERTSymbXAI(SymbXAI):
                self.subgraph_shap(
                    list(set(context) - set(featset)))
 
-
+"""
 ######################
 #   Mutagenicity    #
 #####################
@@ -1158,7 +1158,7 @@ def get_prepro_sample_qc(
             node_range,
             lamb
         )
-
+"""
 
 # ----------------
 # Vision Models

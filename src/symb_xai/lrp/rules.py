@@ -7,10 +7,12 @@ def gamma(
         maximum: float = None,
         modify_bias: bool = True
 ) -> Tensor:
+    """
+    Generalized gamma rule.
+    """
 
-    def modify_parameters(parameters: Tensor, name: str = 'something'):
+    def modify_parameters(parameters: Tensor, name: str):
         if name == 'bias':
-            raise NotImplementedError("this code produced relevance scores in the range of  10**20, I think we shouldn't use it")
             if not modify_bias:
                 return zeros_like(parameters)
             else:
