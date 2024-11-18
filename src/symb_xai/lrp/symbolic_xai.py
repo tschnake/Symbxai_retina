@@ -5,6 +5,7 @@ from ..model.transformer import ModifiedTinyTransformerForSequenceClassification
 from ..model.vision_transformer import ModifiedViTForImageClassification
 import schnetpack as spk
 from ..utils import powerset
+from torch_geometric.nn import Sequential
 
 
 class Node:
@@ -879,6 +880,143 @@ class BERTSymbXAI(SymbXAI):
                    list(set(context) - set(featset)))
 
 
+######################
+#   Mutagenicity    #
+#####################
+from symb_xai.lrp.explain_mutag import get_model_temporary_res, lrp_linear, lrp_gconv
+from torch_geometric.utils import to_dense_adj
+
+
+class MutagenicitySymbXAI(SymbXAI):
+    def __init__(self,
+            sample,
+            model,
+            gamma=0.1,
+            scal_val=1.,
+            target_class= None,
+            debug = False ):
+        
+        self.sample = sample
+        self.model = model
+        self.gamma = gamma
+        self.scal_val = scal_val 
+        self.debug = debug
+        self.node_domain = list(range(sample.x.shape[0]))
+
+        self.x = self.sample.x
+        self.edge_index = self.sample.edge_index
+        self.module_temporary_res, self.linear_out = get_model_temporary_res(model, self.x, self.edge_index)
+
+        # init relevance -> pass the read-out step
+        if target_class is None:
+            # self.target_class = model.forward(self.x, self.edge_index).argmax().item()
+            R_init = torch.zeros_like(self.linear_out)
+            R_init[:, 0] = self.linear_out[:, 0]
+            R_init[:, 1] = -self.linear_out[:, 1]
+
+        else:
+            self.target_class = target_class
+            R_init = torch.zeros_like(self.linear_out)
+            R_init[:, self.target_class] = self.linear_out[:, self.target_class]
+
+        # model.linear 
+        self.R_linear = lrp_linear(x = self.module_temporary_res[5]['out2'], 
+                        W = model.linear.weight.T, 
+                        b = model.linear.bias,
+                        R = R_init,
+                        rule = 'gamma',
+                        gamma = 0.02,
+                        debug = self.debug)
+        
+    def subgraph_relevance(self, subgraph):
+        # subgraph_rel(x, edge_index, R_linear, S, , gamma=0.2, debug=False)
+
+        rule_linear='gamma'
+
+        A = to_dense_adj(self.edge_index).squeeze()
+        A += torch.eye(A.shape[0]) # add selfloop
+
+        R = self.R_linear
+
+        for step, layer in enumerate(range(len(self.module_temporary_res)-2,0,-2)):
+            R_ = torch.zeros_like(R)
+            R_[subgraph] = R[subgraph]
+            R = R_ 
+
+            R = lrp_linear(x = self.module_temporary_res[layer]['out1'], 
+                        W = self.module_temporary_res[layer]['lin2'].weight.T, 
+                        b = self.module_temporary_res[layer]['lin2'].bias,
+                        R = R, rule=rule_linear, gamma=self.gamma, debug=self.debug)
+            R = lrp_linear(x = self.module_temporary_res[layer]['out'], 
+                        W = self.module_temporary_res[layer]['lin1'].weight.T, 
+                        b = self.module_temporary_res[layer]['lin1'].bias,
+                        R = R, rule=rule_linear, gamma=self.gamma, debug=self.debug)
+            R = lrp_gconv(x = self.module_temporary_res[layer - 1]['out2'], 
+                    A = A, 
+                    R = R, 
+                    debug=self.debug)
+
+        R_ = torch.zeros_like(R)
+        R_[subgraph] = R[subgraph]
+        R = R_ 
+        R = lrp_linear(x = self.module_temporary_res[0]['out1'], 
+                    W = self.module_temporary_res[0]['lin2'].weight.T, 
+                    b = self.module_temporary_res[0]['lin2'].bias,
+                    R = R, rule=rule_linear, gamma=self.gamma, debug=self.debug)
+        R = lrp_linear(x = self.module_temporary_res[0]['out'], 
+                    W = self.module_temporary_res[0]['lin1'].weight.T, 
+                    b = self.module_temporary_res[0]['lin1'].bias,
+                    R = R, rule=rule_linear, gamma=self.gamma, debug=self.debug)
+        R = lrp_gconv(x = self.x, 
+                    A = A, 
+                    R = R, debug=self.debug)
+        return R[subgraph].sum() * self.scal_val
+
+    def subgraph_relevance_old(self, subgraph):
+
+        rule_linear='gamma'
+
+        A = to_dense_adj(self.edge_index).squeeze()
+        A += torch.eye(A.shape[0]) # add selfloop
+
+        R = self.R_linear
+
+        for step, layer in enumerate(range(4,0,-2)):
+            R_ = torch.zeros_like(R)
+            R_[subgraph] = R[subgraph]
+            R = R_ 
+
+            R = lrp_linear(x = self.module_temporary_res[layer]['out1'], 
+                        W = self.module_temporary_res[layer]['lin2'].weight.T, 
+                        b = self.module_temporary_res[layer]['lin2'].bias,
+                        R = R, rule=rule_linear, gamma=self.gamma, debug=self.debug)
+            R = lrp_linear(x = self.module_temporary_res[layer]['out'], 
+                        W = self.module_temporary_res[layer]['lin1'].weight.T, 
+                        b = self.module_temporary_res[layer]['lin1'].bias,
+                        R = R, rule=rule_linear, gamma=self.gamma, debug=self.debug)
+            R = lrp_gconv(x = self.module_temporary_res[layer - 1]['out2'], 
+                    A = A, 
+                    R = R, 
+                    debug=self.debug)
+
+        R_ = torch.zeros_like(R)
+        R_[subgraph] = R[subgraph]
+        R = R_ 
+        R = lrp_linear(x = self.module_temporary_res[0]['out1'], 
+                    W = self.module_temporary_res[0]['lin2'].weight.T, 
+                    b = self.module_temporary_res[0]['lin2'].bias,
+                    R = R, rule=rule_linear, gamma=self.gamma, debug=self.debug)
+        R = lrp_linear(x = self.module_temporary_res[0]['out'], 
+                    W = self.module_temporary_res[0]['lin1'].weight.T, 
+                    b = self.module_temporary_res[0]['lin1'].bias,
+                    R = R, rule=rule_linear, gamma=self.gamma, debug=self.debug)
+        R = lrp_gconv(x = self.x, 
+                    A = A, 
+                    R = R, debug=self.debug)
+        
+        return R[subgraph].sum() * self.scal_val
+    
+        
 ######################
 # Quantum Chemistry #
 #####################
