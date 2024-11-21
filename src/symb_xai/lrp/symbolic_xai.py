@@ -879,7 +879,6 @@ class BERTSymbXAI(SymbXAI):
                self.subgraph_shap(
                    list(set(context) - set(featset)))
 
-"""
 ######################
 #   Mutagenicity    #
 #####################
@@ -1158,7 +1157,6 @@ def get_prepro_sample_qc(
             node_range,
             lamb
         )
-"""
 
 # ----------------
 # Vision Models

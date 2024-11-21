@@ -259,8 +259,13 @@ def cov(x, y, w):
     """Weighted Covariance"""
     return numpy.sum(w * (x - m(x, w)) * (y - m(y, w))) / numpy.sum(w)
 
-def corr(x, y, w):
+def corr(x, y, w=None):
     """Weighted Correlation"""
+    if type(x) == list or type(y) == list:
+        x,y = numpy.array(x), numpy.array(y)
+    if w is None:
+        w = numpy.ones(x.shape)
+    
     divisor = numpy.sqrt(cov(x, x, w) * cov(y, y, w))
     if divisor == 0:
         return 0
