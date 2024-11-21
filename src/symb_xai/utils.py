@@ -1,5 +1,6 @@
 from itertools import chain, combinations, pairwise
-import numpy
+from functools import reduce
+import numpy as np
 # from itertools import pairwise
 
 
@@ -141,11 +142,23 @@ class Query_from_promt():
 
         self.bool_fct = self._query_promt2lamb_fct(promt=promt,
                                                   concept2index_set=concept2ids)
-    
+
+        self.filter_vector = None
 
     def __call__(self, feat_set):
+        if type(feat_set[0]) == list:
+            # reduce to list of indices
+            feat_set = reduce(lambda x,y: x+y, feat_set)
+            
         return self.bool_fct(feat_set)
     
+    def get_filter_vector(self, subsets):
+        if self.filter_vector is None:
+            filter_vector = np.array([int(self(feat_set)) for feat_set in subsets])
+            self.filter_vector = filter_vector
+        
+        return self.filter_vector
+
     def _query_promt2lamb_fct(self, 
                              promt : str,
                              concept2index_set: dict):
@@ -155,7 +168,7 @@ class Query_from_promt():
         # Transform the implication operator
         implication_idxs = [idx for idx,word in enumerate(words) if word == 'IMPLIES']
         for impl_indx in implication_idxs:
-            assert words[impl_indx -1] in concept2index_set.keys() and words[impl_indx +1] in concept2index_set.keys(), "We only accept the implication between single concepts, i.e., 'A IMPLIES B' with A and B being known concepts."
+            assert words[impl_indx -1] in concept2index_set.keys() and words[impl_indx +1] in concept2index_set.keys(), f"We only accept the implication between single concepts, i.e., 'A IMPLIES B' with A and B being known concepts. This is not fulfilled in {promt}"
             # We want to transform 'A IMPLIES B' into 'NOT A OR B', which is equivalent.
             words[impl_indx] = 'OR'
             words.insert(impl_indx-1, 'NOT')

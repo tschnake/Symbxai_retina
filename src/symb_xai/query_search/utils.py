@@ -71,6 +71,47 @@ def generate_promts(all_input_promts,  modes, more_input_promts=None):
     return all_output_promts
 
 
+
+def remove_semantic_duplicate_queries(all_promts, all_concepts, verbose=False):
+    def filter_semantic_duplicate_queries(list_a, list_b):
+        if len(list_a) != len(list_b):
+            raise ValueError("Both lists must have the same length")
+        
+        seen_vectors = {}  # To track already encountered vectors and their indices
+        to_remove_indices = []  # Indices to remove from list_a
+        
+        for i, vector in enumerate(list_b):
+            vector_key = tuple(vector)  # Convert vector to tuple for hashing
+            if vector_key in seen_vectors:  # Duplicate found
+                original_index = seen_vectors[vector_key]
+                original_string = list_a[original_index]
+                duplicate_string = list_a[i]
+                
+                if verbose:
+                    # Print both strings and indicate which one will be removed
+                    print(f"Duplicate vector: {vector}")
+                    print(f"Semantically same: '{original_string}' (kept) and '{duplicate_string}' (removed)")
+                
+                # Mark the current index for removal
+                to_remove_indices.append(i)
+            else:
+                # Save the vector and its index as seen
+                seen_vectors[vector_key] = i
+        
+        # Remove duplicates from list_a based on marked indices
+        list_a = [string for i, string in enumerate(list_a) if i not in to_remove_indices]
+        
+        return list_a
+
+    artificial_concepts2ids = {concept: [i] for i, concept in enumerate(all_concepts)}
+    all_queries = [ Query_from_promt(promt=query_promt, concept2ids=artificial_concepts2ids) for query_promt in all_promts]
+    artificial_substr_pset = powerset(artificial_concepts2ids.values())
+    all_filtervectors = [query.get_filter_vector(artificial_substr_pset) for query in all_queries]
+
+    filtered_promts = filter_semantic_duplicate_queries(all_promts, all_filtervectors)
+
+    return filtered_promts
+
 def approx_query_search(explainer,
                         tokens,
                         maxorder,

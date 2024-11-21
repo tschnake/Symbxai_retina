@@ -4,7 +4,7 @@ import numpy as np
 from ..model.transformer import ModifiedTinyTransformerForSequenceClassification,  ModifiedBertForSequenceClassification
 from ..model.vision_transformer import ModifiedViTForImageClassification
 # import schnetpack as spk
-from ..utils import powerset
+from symb_xai.utils import powerset
 from torch_geometric.nn import Sequential
 
 
