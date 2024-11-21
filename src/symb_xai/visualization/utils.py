@@ -5,7 +5,69 @@ import copy, torch
 import numpy as np
 import dgl
 from networkx.drawing.nx_pydot import graphviz_layout
+import pandas as pd
+import seaborn as sns
 
+def make_boxplots_with_stripplots(data, 
+                 plot_extent,
+                 figsize=None, 
+                 boxcolor=(0.0, 0.5, 0.0), 
+                 outlier_quantile=.1, 
+                 yticks=[10,0,-10]):
+    df = pd.DataFrame(data)
+    xlabel,ylabel = df.columns 
+    # Calculate the IQR and filter out outliers
+    q1 = df[ylabel].quantile(outlier_quantile)
+    q3 = df[ylabel].quantile(1-outlier_quantile)
+    iqr = q3 - q1
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q3 + 1.5 * iqr
+
+    # Filter the DataFrame to exclude outliers
+    df = df[(df[ylabel] >= lower_bound) & (df[ylabel] <= upper_bound)]
+    
+
+    # Create the box plot
+    fig, ax = plt.subplots(figsize=(10, 3) if figsize is None else figsize)
+    light_boxcolor = tuple([val + .4 for val in boxcolor])
+    sns.boxplot(x=xlabel, y=ylabel, data=df, ax=ax, showfliers=False,
+                boxprops=dict(facecolor=light_boxcolor, color=boxcolor, alpha=.2),
+                medianprops=dict(color=(.8, 0.5, 0.0), linewidth=3, solid_capstyle='projecting', alpha=.7),
+                whiskerprops=dict(color=boxcolor, linewidth=1.5, alpha=.7),
+                capprops=dict(color=boxcolor, linewidth=1.5, alpha=.7))
+
+    # Overlay the strip plot
+    sns.stripplot(x=xlabel, y=ylabel, data=df, ax=ax, color='black', alpha=0.5, jitter=True)
+
+
+    # boxprops = dict(facecolor=light_green, color=green)   # Box face and line colors
+    # medianprops = dict(color=orange, linewidth=3, solid_capstyle='projecting')                        # Median line color
+    # whiskerprops = dict(color=green, linewidth=1.5)         # Whisker color
+    # capprops = dict(color=green, linewidth=1.5)             # Cap color
+
+    ax.hlines(0,xmin=-.5, xmax=len(set(df[xlabel])) -.5, linestyles='--', color='black', alpha=.5)
+    # bp = ax.boxplot(all_rels.values(), 
+    #             labels=all_rels.keys(),
+    #             patch_artist=True,  # To allow coloring the box
+    #             showfliers=False,   # Exclude outliers
+    #             boxprops=boxprops, 
+    #             medianprops=medianprops,
+    #             whiskerprops=whiskerprops, 
+    #             capprops=capprops )
+
+
+    # Remove upper, lower, and right spines
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+
+    # Keep only the left spine
+    ax.spines['left'].set_visible(True)
+
+    ax.set_yticks(yticks)
+    # Save the box plot as a file
+    fig.savefig(f"../pics/boxplot_all_rels_{plot_extent}.png", dpi=300, bbox_inches='tight', transparent=True)
+    plt.show()
 
 def rescale_score_by_abs(
         score,

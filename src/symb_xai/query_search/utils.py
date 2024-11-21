@@ -1,6 +1,6 @@
 import time, numpy, torch, mpmath
 # import numpy
-from itertools import pairwise
+from itertools import pairwise, product
 from tqdm import tqdm
 from symb_xai.model.transformer import bert_base_uncased_model
 from symb_xai.lrp.symbolic_xai import BERTSymbXAI
@@ -8,6 +8,68 @@ from symb_xai.utils import powerset, Query
 #from symb_xai.visualization.query_search import setids2logicalANDquery
 from random import shuffle
 from transformers import BertTokenizer
+
+# from itertools import product
+from functools import reduce
+# from copy import copy
+
+
+import re
+
+def generate_promts(all_input_promts,  modes, more_input_promts=None):
+    # assert all([mode in [ 'negation of promts', 'conjuction between promts' ] for mode in modes])
+
+    all_output_promts = []
+    
+    if 'negation of promts' in modes:
+        all_output_promts += ['NOT '+ concept for concept in all_input_promts]
+    
+    for mode in modes:
+        new_promts = []
+        match = re.fullmatch('conjuction of order ([0-9]+) between promts', mode )
+        if match:
+            order = int(match.group(1))
+            for multi_index in product(range(len(all_input_promts)), repeat=order):
+                if not all( multi_index[i] < multi_index[i+1] for i in range(order-1)): continue
+                new_promt = reduce( lambda promt1, promt2: f'{promt1} AND {promt2}', 
+                                   [all_input_promts[i] for i in multi_index])
+                
+                new_promts.append(new_promt)
+
+        all_output_promts += new_promts
+    
+    if 'implication between promts' in modes:
+        new_promts = []
+        for promt1 in all_input_promts:
+            for promt2 in all_input_promts:
+                if promt1 == promt2: continue 
+                new_promt = f'( {promt1} IMPLIES {promt2} )'
+                new_promts.append(new_promt)
+        all_output_promts += new_promts
+    
+    if 'conjoin different promts with each other' in modes:
+        new_promts = []
+        for promt1 in all_input_promts:
+            for promt2 in more_input_promts:
+                new_promt = f'{promt1} AND {promt2}'
+                
+
+                new_promts.append(new_promt)
+        all_output_promts += new_promts
+
+    # Test for uniqueness of concepts in the promts
+    logical_symbols = ['AND', 'OR', 'IMPLIES', '(', ')']
+    all_output_promts = [
+        promt for promt in all_output_promts
+        if len(set([word for word in promt.split() if word not in logical_symbols])) ==
+        len([word for word in promt.split() if word not in logical_symbols])
+    ]
+
+    if not all_output_promts: 
+        raise ValueError(f'The specified modes {modes} do not exist.')
+    
+    return all_output_promts
+
 
 def approx_query_search(explainer,
                         tokens,
