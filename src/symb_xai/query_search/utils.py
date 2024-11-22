@@ -1,6 +1,6 @@
 import time, numpy, torch, mpmath
 # import numpy
-from itertools import pairwise
+from itertools import pairwise, product
 from tqdm import tqdm
 from symb_xai.model.transformer import bert_base_uncased_model
 from symb_xai.lrp.symbolic_xai import BERTSymbXAI
@@ -8,6 +8,109 @@ from symb_xai.utils import powerset, Query
 #from symb_xai.visualization.query_search import setids2logicalANDquery
 from random import shuffle
 from transformers import BertTokenizer
+
+# from itertools import product
+from functools import reduce
+# from copy import copy
+
+
+import re
+
+def generate_promts(all_input_promts,  modes, more_input_promts=None):
+    # assert all([mode in [ 'negation of promts', 'conjuction between promts' ] for mode in modes])
+
+    all_output_promts = []
+    
+    if 'negation of promts' in modes:
+        all_output_promts += ['NOT '+ concept for concept in all_input_promts]
+    
+    for mode in modes:
+        new_promts = []
+        match = re.fullmatch('conjuction of order ([0-9]+) between promts', mode )
+        if match:
+            order = int(match.group(1))
+            for multi_index in product(range(len(all_input_promts)), repeat=order):
+                if not all( multi_index[i] < multi_index[i+1] for i in range(order-1)): continue
+                new_promt = reduce( lambda promt1, promt2: f'{promt1} AND {promt2}', 
+                                   [all_input_promts[i] for i in multi_index])
+                
+                new_promts.append(new_promt)
+
+        all_output_promts += new_promts
+    
+    if 'implication between promts' in modes:
+        new_promts = []
+        for promt1 in all_input_promts:
+            for promt2 in all_input_promts:
+                if promt1 == promt2: continue 
+                new_promt = f'( {promt1} IMPLIES {promt2} )'
+                new_promts.append(new_promt)
+        all_output_promts += new_promts
+    
+    if 'conjoin different promts with each other' in modes:
+        new_promts = []
+        for promt1 in all_input_promts:
+            for promt2 in more_input_promts:
+                new_promt = f'{promt1} AND {promt2}'
+                
+
+                new_promts.append(new_promt)
+        all_output_promts += new_promts
+
+    # Test for uniqueness of concepts in the promts
+    logical_symbols = ['AND', 'OR', 'IMPLIES', '(', ')']
+    all_output_promts = [
+        promt for promt in all_output_promts
+        if len(set([word for word in promt.split() if word not in logical_symbols])) ==
+        len([word for word in promt.split() if word not in logical_symbols])
+    ]
+
+    if not all_output_promts: 
+        raise ValueError(f'The specified modes {modes} do not exist.')
+    
+    return all_output_promts
+
+
+
+def remove_semantic_duplicate_queries(all_promts, all_concepts, verbose=False):
+    def filter_semantic_duplicate_queries(list_a, list_b):
+        if len(list_a) != len(list_b):
+            raise ValueError("Both lists must have the same length")
+        
+        seen_vectors = {}  # To track already encountered vectors and their indices
+        to_remove_indices = []  # Indices to remove from list_a
+        
+        for i, vector in enumerate(list_b):
+            vector_key = tuple(vector)  # Convert vector to tuple for hashing
+            if vector_key in seen_vectors:  # Duplicate found
+                original_index = seen_vectors[vector_key]
+                original_string = list_a[original_index]
+                duplicate_string = list_a[i]
+                
+                if verbose:
+                    # Print both strings and indicate which one will be removed
+                    print(f"Duplicate vector: {vector}")
+                    print(f"Semantically same: '{original_string}' (kept) and '{duplicate_string}' (removed)")
+                
+                # Mark the current index for removal
+                to_remove_indices.append(i)
+            else:
+                # Save the vector and its index as seen
+                seen_vectors[vector_key] = i
+        
+        # Remove duplicates from list_a based on marked indices
+        list_a = [string for i, string in enumerate(list_a) if i not in to_remove_indices]
+        
+        return list_a
+
+    artificial_concepts2ids = {concept: [i] for i, concept in enumerate(all_concepts)}
+    all_queries = [ Query_from_promt(promt=query_promt, concept2ids=artificial_concepts2ids) for query_promt in all_promts]
+    artificial_substr_pset = powerset(artificial_concepts2ids.values())
+    all_filtervectors = [query.get_filter_vector(artificial_substr_pset) for query in all_queries]
+
+    filtered_promts = filter_semantic_duplicate_queries(all_promts, all_filtervectors)
+
+    return filtered_promts
 
 def approx_query_search(explainer,
                         tokens,
@@ -259,8 +362,13 @@ def cov(x, y, w):
     """Weighted Covariance"""
     return numpy.sum(w * (x - m(x, w)) * (y - m(y, w))) / numpy.sum(w)
 
-def corr(x, y, w):
+def corr(x, y, w=None):
     """Weighted Correlation"""
+    if type(x) == list or type(y) == list:
+        x,y = numpy.array(x), numpy.array(y)
+    if w is None:
+        w = numpy.ones(x.shape)
+    
     divisor = numpy.sqrt(cov(x, x, w) * cov(y, y, w))
     if divisor == 0:
         return 0
