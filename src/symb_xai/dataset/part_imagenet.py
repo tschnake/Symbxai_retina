@@ -12,14 +12,8 @@ from PIL import Image
 
 
 class PartImageNetDataset(torch.utils.data.Dataset):
-    def __init__(
-        self,
-        data_path: str,
-        mode: str = 'train',
-        get_masks: bool = False,
-        image_size: int = 224,
-        evaluate: bool = False
-    ):
+    def __init__(self, data_path: str, mode: str = 'train', get_masks: bool = False, image_size: int = 224,
+                 evaluate: bool = False):
         """
         PartImageNet dataset
         Parameters
@@ -54,7 +48,7 @@ class PartImageNetDataset(torch.utils.data.Dataset):
         self.coco = coco
 
     def getmasks(self, i):
-        idx = self.dataset.loc[i]['index']
+        idx = self.dataset.iloc[i]['index']
         idx = int(idx)
         coco = self.coco
         img = coco.loadImgs(idx)[0]
@@ -84,28 +78,31 @@ class PartImageNetDataset(torch.utils.data.Dataset):
         return len(self.dataset['index'])
 
     def __getitem__(self, idx):
-        curr_row = self.dataset.loc[idx]
+        curr_row = self.dataset.iloc[idx]
         folder = curr_row['class']
         imgname = curr_row['filename']
         
         if self.mode == 'train':
             path = f"{self.data_path}/train_train/{folder}/{imgname}"
-            print(path)
         elif self.mode == 'test':
             path = f"{self.data_path}/train_test/{folder}/{imgname}"
-        im = torchvision.io.read_image(path, torchvision.io.ImageReadMode.RGB)
-        label = curr_row['label']
-        im = self.transform(im)
 
-        if not self.get_masks:
-            return im, label
-
-        mask = self.getmasks(idx)
-        if mask == None:
-            mask = torch.zeros(size=(40, im.shape[-2], im.shape[-1]))
-        mask = transforms.Resize(size=(im.shape[-2], im.shape[-1]),
-                interpolation=transforms.InterpolationMode.NEAREST)(mask)
-        return im, label, mask
+        if os.path.isfile(path) and os.path.getsize(path) > 0:
+            im = torchvision.io.read_image(path, torchvision.io.ImageReadMode.RGB)
+            label = curr_row['label']
+            im = self.transform(im)
+    
+            if not self.get_masks:
+                return im, label
+    
+            mask = self.getmasks(idx)
+            if mask == None:
+                mask = torch.zeros(size=(40, im.shape[-2], im.shape[-1]))
+            mask = transforms.Resize(size=(im.shape[-2], im.shape[-1]),
+                    interpolation=transforms.InterpolationMode.NEAREST)(mask)
+            return im, label, mask
+        else:
+            return None, None, None
 
     @staticmethod
     def get_transforms(image_size: int, evaluate: bool = False):
