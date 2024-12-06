@@ -58,7 +58,7 @@ def generate_promts(all_input_promts,  modes, more_input_promts=None):
         all_output_promts += new_promts
 
     # Test for uniqueness of concepts in the promts
-    logical_symbols = ['AND', 'OR', 'IMPLIES', '(', ')']
+    logical_symbols = ['AND', 'OR', 'NOT', 'IMPLIES', '(', ')']
     all_output_promts = [
         promt for promt in all_output_promts
         if len(set([word for word in promt.split() if word not in logical_symbols])) ==
