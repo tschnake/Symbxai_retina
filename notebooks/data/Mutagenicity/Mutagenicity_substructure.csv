@@ -28,3 +28,6 @@ O=C1CCO1&β-Propiolactone
 [c][NH][O][C](=O)&Aromatic hydroxylamine ester
 c1ccc2c(c1)ccc3c2ccc4c3cccc4&Polycyclic planar system
 [*]-S(=O)(=O)[NH]-[*]&Sulfonamide
+*-[C](F)(F)F&Trifluoromethyl Group
+[$([a])]S(=O)(=O)[#6]&Arylsulfonyl Derivatives
+*-S(=O)(=O)[OH]&Sulfonic Acid Group

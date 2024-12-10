@@ -73,6 +73,8 @@ class ModifiedLinear(Module):
                 modified_layer(layer=self.fc, transform=gamma(gam=gam, maximum=0)),  # Neg
                 modified_layer(layer=self.fc, transform=gamma(gam=gam, minimum=0, modify_bias=False))  # Pos
             ]
+        else:
+            raise ValueError(f'The transformation {self.transform} is not implemented.')
 
     def forward(
             self,

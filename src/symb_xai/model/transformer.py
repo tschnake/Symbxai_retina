@@ -187,9 +187,9 @@ class TinyTransformerForSequenceClassification(nn.Module):
 class ModifiedSelfAttention(nn.Module):
     def __init__(self, self_attention):
         super(ModifiedSelfAttention, self).__init__()
-        self.query = ModifiedLinear(fc=self_attention.query, transform=gamma())
-        self.key = ModifiedLinear(fc=self_attention.key, transform=gamma())
-        self.value = ModifiedLinear(fc=self_attention.value, transform=gamma())
+        self.query = ModifiedLinear(fc=self_attention.query, transform='gamma')
+        self.key = ModifiedLinear(fc=self_attention.key, transform='gamma')
+        self.value = ModifiedLinear(fc=self_attention.value, transform='gamma')
 
         self.num_attention_heads = self_attention.num_attention_heads
         self.attention_head_size = self_attention.attention_head_size
@@ -222,7 +222,7 @@ class ModifiedSelfAttention(nn.Module):
 class ModifiedSelfOutput(nn.Module):
     def __init__(self, self_output):
         super(ModifiedSelfOutput, self).__init__()
-        self.dense = ModifiedLinear(fc=self_output.dense, transform=gamma())
+        self.dense = ModifiedLinear(fc=self_output.dense, transform='gamma')
         self.LayerNorm = ModifiedLayerNorm(norm_layer=self_output.LayerNorm
                                            # normalized_shape=self_output.dense.weight.shape[1]
                                            )
@@ -265,7 +265,7 @@ class ModifiedEncoder(nn.Module):
 class ModifiedPooler(nn.Module):
     def __init__(self, pooler):
         super(ModifiedPooler, self).__init__()
-        self.dense = ModifiedLinear(fc=pooler.dense, transform=gamma())
+        self.dense = ModifiedLinear(fc=pooler.dense, transform='gamma')
         self.activation = ModifiedAct(pooler.activation)
 
     def forward(self, hidden_states):
@@ -293,7 +293,7 @@ class ModifiedTinyTransformerForSequenceClassification(nn.Module):
     def __init__(self, bert_classification, order='higher'):
         super(ModifiedTinyTransformerForSequenceClassification, self).__init__()
         self.bert = ModifiedModel(bert_classification.bert)
-        self.classifier = ModifiedLinear(fc=bert_classification.classifier, transform=gamma())
+        self.classifier = ModifiedLinear(fc=bert_classification.classifier, transform='gamma')
 
     def forward(self, embeddings):
         hidden_states = self.bert(embeddings)
@@ -401,7 +401,7 @@ class ModifiedBertAttention(nn.Module):
 class ModifiedBertIntermediate(nn.Module):
     def __init__(self, intermediate, gam=.15):
         super(ModifiedBertIntermediate, self).__init__()
-        self.dense = ModifiedLinear(fc=intermediate.dense, transform=gamma(), gam=gam)
+        self.dense = ModifiedLinear(fc=intermediate.dense, transform='gamma', gam=gam)
         self.intermediate_act_fn = ModifiedAct(intermediate.intermediate_act_fn)
 
     def forward(self, hidden_states):
@@ -457,7 +457,7 @@ class ModifiedBertEncoder(nn.Module):
 class ModifiedBertPooler(nn.Module):
     def __init__(self, pooler, gam=0.15):
         super(ModifiedBertPooler, self).__init__()
-        self.dense = ModifiedLinear(fc=pooler.dense, transform=gamma(), gam=gam)
+        self.dense = ModifiedLinear(fc=pooler.dense, transform='gamma', gam=gam)
         self.activation = ModifiedAct(pooler.activation)
 
     def forward(self, hidden_states):

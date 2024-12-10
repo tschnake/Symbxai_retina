@@ -163,7 +163,7 @@ class Query_from_promt():
                              promt : str,
                              concept2index_set: dict):
         words = promt.split()
-        assert all(word in concept2index_set.keys() or word in ['AND', 'NOT', 'OR', '(', ')', 'IMPLIES'] for word in words), 'Promt is not well formed.'
+        assert all(word in concept2index_set.keys() or word in ['AND', 'NOT', 'OR', '(', ')', 'IMPLIES'] for word in words), f'Promt "{promt}" is not well formed.'
 
         # Transform the implication operator
         implication_idxs = [idx for idx,word in enumerate(words) if word == 'IMPLIES']

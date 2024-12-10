@@ -163,6 +163,7 @@ class SymbXAI:
         # Set up activations.
         self.xs = [x.data]
         for layer in layers:
+            # print(x)
             x = layer(x)
             if isinstance(x, tuple):
                 x = x[0]
@@ -910,8 +911,8 @@ class MutagenicitySymbXAI(SymbXAI):
         if target_class is None:
             # self.target_class = model.forward(self.x, self.edge_index).argmax().item()
             R_init = torch.zeros_like(self.linear_out)
-            R_init[:, 0] = self.linear_out[:, 0]
-            R_init[:, 1] = -self.linear_out[:, 1]
+            R_init[:, 0] = -self.linear_out[:, 0]
+            R_init[:, 1] = self.linear_out[:, 1]
 
         else:
             self.target_class = target_class
