@@ -14,7 +14,8 @@ def make_boxplots_with_stripplots(data,
                  boxcolor=(0.0, 0.5, 0.0), 
                  outlier_quantile=.1, 
                  add_vline=False,
-                 xticks=[10,0,-10]):
+                 xticks=[10,0,-10],
+                 plot_format='png'):
     df = pd.DataFrame(data)
     ylabel,xlabel = df.columns 
     # Calculate the IQR and filter out outliers
@@ -78,7 +79,7 @@ def make_boxplots_with_stripplots(data,
     ax.set_xticks(xticks)
     if plot_extent is not None:
         # Save the box plot as a file
-        fig.savefig(f"../pics/boxplot_all_rels_{plot_extent}.png", dpi=300, bbox_inches='tight', transparent=True)
+        fig.savefig(f"../pics/boxplot_all_rels_{plot_extent}.{plot_format}", dpi=300, bbox_inches='tight', transparent=True)
     plt.show()
 
 def rescale_score_by_abs(
